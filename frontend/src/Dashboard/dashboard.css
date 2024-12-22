@@ -1,0 +1,49 @@
+.Dashboard {
+    padding: 20px;
+    margin-left: 245px; /* Add space for sidebar */
+    margin-top: 66px;
+
+  }
+  
+  .Announcement-section {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+  }
+  
+  .Announcement p {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #555;
+  }
+  
+  .Cards-section {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .Card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .Card h3 {
+    margin-bottom: 10px;
+    font-size: 19px;
+    color: #333;
+  }
+  
+  .Card p {
+    font-size: 35px;
+    font-weight: bold;
+    color: #4CAF50;
+  }
+  

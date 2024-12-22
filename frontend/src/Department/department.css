@@ -1,0 +1,125 @@
+/* Department Section Layout */
+.Department-section {
+    padding: 20px;
+    margin-left: 245px; /* Add space for sidebar */
+    margin-top: 66px;
+
+  }
+  
+  /* Department Cards Layout */
+  .Department-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    
+  }
+  
+  .Department-card {
+    width: 150px;
+    height: 150px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .Department-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .Add-department-card {
+    width: 150px;
+    height: 150px;
+    background-color: #e0f7fa;
+    border: 1px dashed #007bff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .Add-department-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .Add-department-input {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    flex: 1;
+  }
+  
+  .Add-department-button {
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .Add-department-button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Modal Styling */
+  .Modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .Modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    position: relative;
+    width: 400px;
+  }
+  
+  /* Close Icon */
+  .Close-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: black;
+    font-size: 1.5rem;
+  }
+  
+  /* Back Button */
+  .Back-button {
+    background-color: transparent;
+    border: none;
+    color: #007bff;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    transition: color 0.3s;
+  }
+  
+  .Back-button:hover {
+    color: #0056b3;
+  }
+  
+  .Back-icon {
+    font-size: 1.2rem;
+  }
+  

@@ -1,0 +1,84 @@
+/* General styling for the login form */
+.Login {
+  padding: 20px;
+  max-width: 400px;
+  margin: 50px auto;
+  background: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.Login input,
+.Login button {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.Login input {
+  border: 1px solid #ccc;
+}
+
+/* Forgot Password Button */
+.Forgot-password {
+  display: block;
+  background: none;
+  border: none;
+  color: #4CAF50;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: right;
+  margin-top: -5px;
+  margin-bottom: 10px;
+}
+
+.Forgot-password:hover {
+  color: #388e3c; /* Slightly darker green for hover effect */
+}
+
+/* Login Button */
+.Login-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 10px;
+  transition: background-color 0.3s;
+}
+
+.Login-btn:hover {
+  background-color: #45a049;
+}
+
+/* Error message styling */
+.Error {
+  color: red;
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+/* Signup link styling */
+.Signup-link {
+  text-align: center;
+}
+
+.Signup-link p {
+  margin: 10px 0 0;
+}
+
+.Signup-link a {
+  color: #4CAF50;
+  text-decoration: none;
+}
+
+.Signup-link a:hover {
+  text-decoration: underline;
+}

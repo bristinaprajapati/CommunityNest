@@ -1,0 +1,29 @@
+.Signup {
+  padding: 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.Signup input,
+.Signup button {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  box-sizing: border-box; /* Ensures padding and border are included in width */
+}
+
+.Signup input {
+  border: 1px solid #ccc;
+}
+
+.Signup button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.Login-link {
+  text-align: center;
+}
