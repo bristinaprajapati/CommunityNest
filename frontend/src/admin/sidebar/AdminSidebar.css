@@ -1,0 +1,54 @@
+.Sidebar {
+    width: 250px;
+    background-color: #f4f4f4;
+    padding: 20px;
+    color: black; /* All text displayed in the sidebar is in black */
+}
+
+.Sidebar-item {
+    cursor: pointer;
+    padding: 10px;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+    color: black;
+}
+
+.Sidebar-item:hover {
+    background-color: #eaeaea;
+}
+
+.Sidebar-submenu {
+    margin-left: 15px;
+}
+
+.Admin-section {
+    margin: 10px 0;
+}
+
+.Admin-name {
+    font-weight: bold;
+    cursor: pointer;
+    padding: 5px 0;
+    color: black;
+}
+
+.Admin-name:hover {
+    color: #007bff;
+}
+
+.Admin-subcategories {
+    margin-left: 20px;
+    padding-left: 10px;
+    border-left: 2px solid #333;
+}
+
+.Sidebar-subitem {
+    padding: 5px 0;
+    cursor: pointer;
+    color: black;
+}
+
+.Sidebar-subitem:hover {
+    text-decoration: underline;
+    color: #007bff;
+}

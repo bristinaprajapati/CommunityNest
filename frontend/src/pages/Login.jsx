@@ -23,7 +23,11 @@ const Login = () => {
       });
 
       console.log('Login successful:', response.data);
-      navigate('/main'); // Navigate to the main page
+      if (response.data.isAdmin) {
+        navigate('/admin-main'); // Navigate to AdminDashboard.jsx for admin
+      } else {
+        navigate('/main'); // Navigate to the main page for regular users
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     }

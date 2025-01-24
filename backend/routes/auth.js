@@ -48,11 +48,18 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid password' });
     }
 
-    res.status(200).json({ message: 'Login successful', user });
+    const isAdmin = email === 'bristinaprajapati99@gmail.com'; // Check if the email matches admin
+
+    res.status(200).json({ 
+      message: 'Login successful', 
+      user, 
+      isAdmin 
+    });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // Forgot Password route
 router.post('/forgot-password', async (req, res) => {
@@ -93,35 +100,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-
-// OTP Verification Route
-// router.post('/verify-otp', async (req, res) => {
-//   const { email, otp } = req.body;
-
-//   try {
-//     // Find the user by email
-//     const user = await User.findOne({ email });
-
-//     if (!user) {
-//       return res.status(404).json({ message: 'User not found' });
-//     }
-
-//     // Check if the OTP is correct and not expired
-//     if (user.resetToken !== otp) {
-//       return res.status(400).json({ message: 'Invalid OTP' });
-//     }
-
-//     if (user.resetTokenExpiry < Date.now()) {
-//       return res.status(400).json({ message: 'OTP has expired' });
-//     }
-
-//     res.status(200).json({ success: true, message: 'OTP verified successfully' });
-
-//   } catch (err) {
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// });
-
+// Verify OTP route
 router.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
 
@@ -138,44 +117,7 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-
-
-// Reset Password Route
-// router.post('/reset-password', async (req, res) => {
-//   const { email, otp, newPassword } = req.body;
-
-//   try {
-//     // Find the user by email and check if the OTP is correct and not expired
-//     const user = await User.findOne({ email });
-
-//     if (!user) {
-//       return res.status(404).json({ message: 'User not found' });
-//     }
-
-//     if (user.resetToken !== otp) {
-//       return res.status(400).json({ message: 'Invalid OTP' });
-//     }
-
-//     if (user.resetTokenExpiry < Date.now()) {
-//       return res.status(400).json({ message: 'OTP has expired' });
-//     }
-
-//     // Hash the new password and update it
-//     const hashedPassword = await bcrypt.hash(newPassword, 10);
-//     user.password = hashedPassword;
-
-//     // Clear the OTP and expiry time after password reset
-//     user.resetToken = undefined;
-//     user.resetTokenExpiry = undefined;
-
-//     await user.save();
-
-//     res.status(200).json({ message: 'Password reset successfully' });
-
-//   } catch (err) {
-//     res.status(500).json({ message: 'Server error' });
-//   }
-// });
+// Reset Password route
 router.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
 

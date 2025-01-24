@@ -10,6 +10,8 @@ import ForgotPassword from './ForgotPassword/ForgotPassword';
 import ResetPassword from './ResetPassword/ResetPassword';
 import NewPassword from './NewPassword/NewPassword.jsx';
 import Dashboard from './Dashboard/dashboard.jsx';
+import AdminDashboard from './admin/AdminDashboard/AdminDashboard.jsx';
+import AdminMain from './admin/AdminMain.jsx';
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState('Departments');
@@ -38,6 +40,8 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/new-password" element={<NewPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} /> 
+        <Route path="/admin-main" element={<AdminMain />} /> 
 
         
       </Routes>

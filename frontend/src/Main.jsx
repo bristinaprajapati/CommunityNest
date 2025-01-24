@@ -5,14 +5,14 @@ import Dashboard from './Dashboard/dashboard'; // Import the Dashboard component
 import './App.css';
 
 const Main = () => {
-  const [selectedCategory, setSelectedCategory] = useState('Departments');
+  const [selectedCategory, setSelectedCategory] = useState('Dashboard');
 
   const renderContent = () => {
     switch (selectedCategory) {
-      case 'Departments':
-        return <Department onSelectDepartment={(dept) => setSelectedCategory(dept)} />;
       case 'Dashboard':
         return <Dashboard />;
+      case 'Departments':
+        return <Department onSelectDepartment={(dept) => setSelectedCategory(dept)} />;
       default:
         return <div>Other Content</div>;
     }
