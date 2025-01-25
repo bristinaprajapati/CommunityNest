@@ -1,21 +1,9 @@
-//  const express = require("express");
-//  require ('dotenv').config();
-//  const app = express();
-//  const mongoose = require('mongoose');
-
-
-
-//  // database
-//  mongoose
-//  .connect(process.env.MONGO_URL)
-//  .then(()=> console.log('DB connected'))
-//  .catch((err) => console.log("DB not connected"))
-
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const authRoutes = require("./routes/auth");
+const documentRoutes = require("./routes/documents");
 
 dotenv.config();
 
@@ -35,6 +23,10 @@ mongoose
 
 // Routes
 app.use("/api/auth", authRoutes);
+
+// Routes
+app.use("/api/document", documentRoutes); // Prefix routes with /api
+
 
 // Start server
 const PORT = process.env.PORT || 5001;

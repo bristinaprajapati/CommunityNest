@@ -1,125 +1,135 @@
 /* Department Section Layout */
 .Department-section {
-    padding: 20px;
-    margin-left: 245px; /* Add space for sidebar */
-    margin-top: 66px;
+  padding: 30px;
+  margin-left: 280px; /* Add space for sidebar */
+  margin-top: 100px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f1f3f5; /* Light background for better contrast */
+}
 
-  }
-  
-  /* Department Cards Layout */
-  .Department-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    
-  }
-  
-  .Department-card {
-    width: 150px;
-    height: 150px;
-    background-color: #f8f9fa;
-    border: 1px solid #ced4da;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s;
-  }
-  
-  .Department-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  .Add-department-card {
-    width: 150px;
-    height: 150px;
-    background-color: #e0f7fa;
-    border: 1px dashed #007bff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s;
-  }
-  
-  .Add-department-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  .Add-department-input {
-    padding: 8px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    flex: 1;
-  }
-  
-  .Add-department-button {
-    padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-  
-  .Add-department-button:hover {
-    background-color: #0056b3;
-  }
-  
-  /* Modal Styling */
-  .Modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .Modal-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    position: relative;
-    width: 400px;
-  }
-  
-  /* Close Icon */
-  .Close-icon {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    cursor: pointer;
-    color: black;
-    font-size: 1.5rem;
-  }
-  
-  /* Back Button */
-  .Back-button {
-    background-color: transparent;
-    border: none;
-    color: #007bff;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    transition: color 0.3s;
-  }
-  
-  .Back-button:hover {
-    color: #0056b3;
-  }
-  
-  .Back-icon {
-    font-size: 1.2rem;
-  }
-  
+/* Department Header - Title and Add New Department Button */
+.Department-header {
+  display: flex;
+  justify-content: space-between; /* Space between title and button */
+  align-items: center; /* Vertically center items */
+  margin-bottom: 20px; /* Space between header and department cards */
+}
+
+.Department-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #343a40;
+  margin: 0; /* Remove default margin */
+}
+
+/* Add New Department Button */
+.Add-department-button {
+  padding: 12px 24px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s ease;
+}
+
+.Add-department-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+}
+
+.Add-department-button:active {
+  transform: translateY(2px);
+}
+
+/* Department Cards Layout */
+.Department-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Grid layout for 3 cards per row */
+  gap: 20px;
+}
+
+/* Department Card Styling */
+.Department-card {
+  height: 200px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #495057;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.Department-card:hover {
+  transform: translateY(-8px); /* Smooth hover effect */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* Add a deeper shadow */
+}
+
+.Department-card:active {
+  transform: translateY(2px); /* Visual feedback on click */
+}
+
+/* Modal Styling */
+.Modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Modal Content */
+.Modal-content {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  position: relative;
+  width: 450px;
+  max-width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.4s ease;
+}
+
+/* Modal Close Icon */
+.Close-icon {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #343a40;
+  transition: color 0.3s ease;
+}
+
+.Close-icon:hover {
+  color: #ff4d4d;
+}
+
+/* Add Department Input Field */
+.Add-department-input {
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  width: 100%;
+  font-size: 1rem;
+  margin-bottom: 15px;
+  transition: border-color 0.3s ease;
+}
+
+.Add-department-input:focus {
+  border-color: #007bff;
+  outline: none;
+}

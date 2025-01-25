@@ -1,0 +1,205 @@
+/* General Styles */
+.document-repository-page {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f9f9f9;
+    font-family: 'Arial', sans-serif;
+    padding-left: 280px;
+    padding-top: 100px;
+    
+  }
+  
+  .document-repository-content {
+    flex: 1;
+    padding: 20px;
+  }
+  
+  /* Title and Description */
+  .document-repository-title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+  }
+  
+  .document-repository-content p {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 20px;
+  }
+  
+  /* Search Bar */
+  .document-repository-search {
+    margin-bottom: 20px;
+  }
+  
+  .search-bar {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s ease;
+  }
+  
+  .search-bar:focus {
+    border-color: #0077ff;
+    outline: none;
+  }
+  
+  /* Document Cards */
+  .document-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .document-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .document-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+  }
+  
+  .document-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .document-info img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+  
+  .document-info h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .document-info p {
+    font-size: 14px;
+    color: #888;
+    margin-top: 4px;
+  }
+  
+  .delete-btn {
+    padding: 8px 15px;
+    background-color: #ff4d4d;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .delete-btn:hover {
+    background-color: #e60000;
+  }
+  
+  /* Delete Confirmation Modal */
+  .delete-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .delete-modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    width: 400px;
+    max-width: 90%;
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .delete-modal-content h3 {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #333;
+  }
+  
+  .delete-modal-content p {
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .delete-modal-content .flex {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+  
+  .delete-modal-content button {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .delete-modal-content button:first-child {
+    background-color: #ff4d4d;
+    color: #fff;
+  }
+  
+  .delete-modal-content button:first-child:hover {
+    background-color: #e60000;
+  }
+  
+  .delete-modal-content button:last-child {
+    background-color: #e0e0e0;
+    color: #333;
+  }
+  
+  .delete-modal-content button:last-child:hover {
+    background-color: #ccc;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .document-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+  
+    .document-info h3 {
+      font-size: 16px;
+    }
+  
+    .document-info p {
+      font-size: 13px;
+    }
+  
+    .delete-btn {
+      font-size: 14px;
+      padding: 6px 12px;
+    }
+  }
+  

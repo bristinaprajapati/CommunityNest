@@ -1,54 +1,130 @@
+/* Sidebar container */
 .Sidebar {
     width: 250px;
-    background-color: #f4f4f4;
-    padding: 20px;
-    color: black; /* All text displayed in the sidebar is in black */
-}
-
-.Sidebar-item {
-    cursor: pointer;
-    padding: 10px;
+    background-color: #ffffff; /* White background */
+    color: #111827; /* Darker text for good contrast */
+    height: 100vh; /* Full height */
+    padding: 20px 15px;
+    padding-top: 120px; /* Adjust padding for alignment */
+    font-family: 'Arial', sans-serif;
+    position: fixed;
+    top: 0;
+    left: 0; /* Align to the left edge */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    overflow-y: auto; /* Scrollable content for long items */
+    border-right: 1px solid #e5e7eb; /* Light border for separation */
+    transition: all 0.3s ease; /* Smooth animations */
+  }
+  
+  /* Sidebar title */
+  .Sidebar-title {
+    font-size: 22px;
     font-weight: bold;
-    border-bottom: 1px solid #ddd;
-    color: black;
-}
-
-.Sidebar-item:hover {
-    background-color: #eaeaea;
-}
-
-.Sidebar-submenu {
-    margin-left: 15px;
-}
-
-.Admin-section {
-    margin: 10px 0;
-}
-
-.Admin-name {
+    margin-bottom: 20px;
+    text-align: center;
+    color: #111827; /* Strong dark color */
+    border-bottom: 2px solid #e5e7eb; /* Separation with a border */
+    padding-bottom: 10px;
+  }
+  
+  /* Sidebar menu */
+  .Sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Sidebar item */
+  .Sidebar-item {
+    display: flex;  /* Ensure icon and text are displayed horizontally */
+    align-items: center;  /* Vertically align icon and text */
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 8px; /* Slight rounding for a modern look */
+    cursor: pointer;
+    font-size: 16px;
+    color: #374151; /* Neutral dark gray for text */
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    width: 100%; /* Ensure items take full width */
+  }
+  
+  /* Align icon and text on the same line */
+  .Sidebar-item .Sidebar-icon {
+    margin-right: 12px; /* Space between the icon and the text */
+    font-size: 20px;
+    color: #6b7280; /* Subtle gray for icons */
+    transition: color 0.3s ease;
+  }
+  
+  /* Hover effect for sidebar item */
+  .Sidebar-item:hover {
+    background-color: #f3f4f6; /* Subtle light gray hover */
+    color: #2563eb; /* Vibrant blue text on hover */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Slight elevation effect */
+  }
+  
+  /* Hover effect for icon */
+  .Sidebar-item:hover .Sidebar-icon {
+    color: #2563eb; /* Change icon color on hover */
+  }
+  
+  /* Sidebar text */
+  .Sidebar-text {
+    font-size: 16px;
+    font-weight: 500;
+    flex-grow: 1; /* Text takes up remaining space */
+    white-space: nowrap; /* Prevent text from breaking onto multiple lines */
+  }
+  
+  /* Active state for sidebar item */
+  .Sidebar-item.active {
+    background-color: #e0f2fe; /* Soft blue background for active items */
+    color: #1e40af; /* Darker blue for active text */
     font-weight: bold;
-    cursor: pointer;
-    padding: 5px 0;
-    color: black;
-}
-
-.Admin-name:hover {
-    color: #007bff;
-}
-
-.Admin-subcategories {
-    margin-left: 20px;
-    padding-left: 10px;
-    border-left: 2px solid #333;
-}
-
-.Sidebar-subitem {
-    padding: 5px 0;
-    cursor: pointer;
-    color: black;
-}
-
-.Sidebar-subitem:hover {
-    text-decoration: underline;
-    color: #007bff;
-}
+  }
+  
+  .Sidebar-item.active .Sidebar-icon {
+    color: #1e40af; /* Darker blue for active icon */
+  }
+  
+  /* Scrollable section */
+  .Sidebar-scrollable {
+    max-height: calc(100vh - 120px); /* Adjusted for available space */
+    overflow-y: auto;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px; /* Thin scrollbar */
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background-color: #d1d5db; /* Subtle gray for scrollbar */
+    border-radius: 4px; /* Rounded corners */
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #9ca3af; /* Darker gray on hover */
+  }
+  
+  /* Responsive design */
+  @media screen and (max-width: 768px) {
+    .Sidebar {
+      width: 200px; /* Smaller width for smaller screens */
+      padding: 20px 10px;
+    }
+  
+    .Sidebar-title {
+      font-size: 18px; /* Smaller font size for title */
+    }
+  
+    .Sidebar-item {
+      padding: 10px 12px; /* Reduced padding for compact design */
+      font-size: 14px;
+    }
+  
+    .Sidebar-icon {
+      font-size: 18px; /* Smaller icon size */
+    }
+  }
+  

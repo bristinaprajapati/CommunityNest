@@ -1,0 +1,119 @@
+/* Basic layout and styling for the page */
+.document-repository-page {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f4f7fc;
+    margin-top: 200px;
+  }
+  
+  .document-repository-content {
+    flex: 1;
+    padding: 20px;
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+  }
+  
+  .title-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    color: #333;
+    box-sizing: border-box;
+  }
+  
+  .title-input:focus {
+    border-color: #007bff;
+    outline: none;
+  }
+  
+  /* Editor styling */
+  .jodit-container {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 20px;
+    background-color: #fafafa;
+  }
+  
+  .jodit-editor {
+    font-size: 1rem;
+    line-height: 1.5;
+    min-height: 300px;
+    padding: 10px;
+  }
+  
+  /* Button styling */
+  button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .save-btn {
+    background-color: #28a745;
+    color: white;
+    margin-right: 10px;
+  }
+  
+  .save-btn:hover {
+    background-color: #218838;
+  }
+  
+  .cancel-btn {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .cancel-btn:hover {
+    background-color: #c82333;
+  }
+  
+  /* Adjust button alignment */
+  button + button {
+    margin-top: 10px;
+  }
+  
+  /* Flex layout for input and editor section */
+  .editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  /* Small devices support (Mobile-first approach) */
+  @media (max-width: 600px) {
+    .document-repository-content {
+      margin: 10px;
+      padding: 15px;
+    }
+  
+    h2 {
+      font-size: 1.5rem;
+    }
+  
+    .title-input {
+      font-size: 0.9rem;
+    }
+  
+    .save-btn, .cancel-btn {
+      width: 100%;
+      font-size: 0.9rem;
+    }
+  }
+  

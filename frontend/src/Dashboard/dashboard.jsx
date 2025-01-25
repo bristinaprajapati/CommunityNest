@@ -57,10 +57,12 @@
 
 import React from 'react';
 import './dashboard.css';
+import Sidebar from '../Sidebar/sidebar'; // Import the Sidebar component
 
 const Dashboard = () => {
   return (
     <div className="Dashboard">
+      <Sidebar />
       {/* Announcement Section */}
       <div className="Announcement-section">
         <h2>Announcements</h2>

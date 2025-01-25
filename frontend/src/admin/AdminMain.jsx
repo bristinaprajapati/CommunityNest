@@ -3,7 +3,10 @@ import Sidebar from './sidebar/AdminSidebar'; // Import the Sidebar component
 import Dashboard from './AdminDashboard/AdminDashboard'; // Import the Dashboard component
 // Import additional components as needed
 // import Department from './Department/Department';
-// import Members from './Members/Members';
+// import Members from './Admin_Members/Members';
+// import Departments from './Admin_Departments/Departments';
+// import Meetings from './Admin_Meetings/Meetings';
+// import Events from './Admin_Events/Events';
 // import Meetings from './Meetings/Meetings';
 // import Events from './Events/Events';
 // import './App.css';
