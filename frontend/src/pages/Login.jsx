@@ -15,14 +15,17 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
+  
     try {
       const response = await axios.post('http://localhost:5001/api/auth/login', {
         email,
         password,
       });
-
+  
       console.log('Login successful:', response.data);
+      // Save userId to localStorage
+      localStorage.setItem("userId", response.data.userId);
+  
       if (response.data.isAdmin) {
         navigate('/admin-main'); // Navigate to AdminDashboard.jsx for admin
       } else {
@@ -32,14 +35,15 @@ const Login = () => {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     }
   };
-
+  
+  // Handle Forgot Password logic
   const handleForgotPassword = () => {
     console.log('Forgot Password clicked');
-    // Add logic to navigate to a password reset page or open a modal
+    // Navigate to forgot password page
     navigate('/forgot-password');
   };
 
-  //for recaptcha
+  // For ReCAPTCHA
   const onChange = value => { 
     console.log(value) // prints the token
   }
@@ -63,31 +67,26 @@ const Login = () => {
           required
         />
         {error && <p className="Error">{error}</p>} {/* Display error if present */}
-        {/* <button
+
+        <div className="recaptcha">
+          <ReCAPTCHA sitekey={SITE_KEY} onChange={onChange} />
+        </div>
+
+        {/* Forgot Password button */}
+        <button
           type="button"
           className="Forgot-password"
           onClick={handleForgotPassword}
         >
           Forgot Password?
-        </button> */}
+        </button>
 
-        <div className="recaptcha">
-          <ReCAPTCHA sitekey={SITE_KEY}
-          onChange = {onChange}
-          
-          />
-          </div>
-        <p>
-          {/* Link to forgot password page */}
-          <Link to="/forgot-password">Forgot Password?</Link>
-
-        </p>
-        
         <button type="submit" className="Login-btn">
           Login
         </button>
-        </form>
-        <div className="Signup-link">
+      </form>
+
+      <div className="Signup-link">
         <p>
           Don't have an account? <Link to="/signup">Sign up</Link>
         </p>

@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom"; // Import useNavigate and useParams
-import JoditEditor from "jodit-react"; // Rich text editor component
-import Sidebar from "../Sidebar/sidebar.jsx"; // Sidebar component
+import { useNavigate, useParams } from "react-router-dom";
+import JoditEditor from "jodit-react";
+import Sidebar from "../Sidebar/sidebar.jsx"; // Import your Sidebar component
 import "./DocumentRepository.css";
 
 const EditorPage = () => {
+  const { id, department } = useParams(); // Get document ID and department from the URL
   const [documentTitle, setDocumentTitle] = useState("");
   const [editorContent, setEditorContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const { id, spaceName } = useParams(); // Get the document ID and department (spaceName) from the URL
-  const navigate = useNavigate(); // Use useNavigate for redirecting
+  const navigate = useNavigate();
 
-  const backendUrl = "http://localhost:5001/api/document";
+  const backendUrl = "http://localhost:5001/api/document"; // Update this to match your backend URL
 
   useEffect(() => {
     if (id) {
-      // If ID is available, it's an edit scenario
+      // If editing, fetch the document by ID
       axios
         .get(`${backendUrl}/getDocumentById/${id}`)
         .then((res) => {
@@ -34,18 +34,18 @@ const EditorPage = () => {
       return;
     }
 
-    const method = isEditing ? "PUT" : "POST"; // PUT for editing, POST for creating
+    const method = isEditing ? "PUT" : "POST";
     const endpoint = isEditing ? "/editDocument" : "/createDocument";
+
     const payload = {
       title: documentTitle,
       content: editorContent,
       userId: localStorage.getItem("userId"),
+      department,
+      ...(isEditing && { id }), // Add ID to the payload only for editing
     };
 
-    // Add document ID for updates (only when editing)
-    if (isEditing) {
-      payload.id = id;
-    }
+    console.log("Payload being sent:", payload); // Debugging log
 
     axios({
       method,
@@ -54,16 +54,15 @@ const EditorPage = () => {
     })
       .then((res) => {
         const data = res.data;
+        alert(data.message);
         if (data.success) {
-          alert(data.message);
-
-          // Navigate to the specific department's document section
-          navigate(`/department/${spaceName}/documents`);
-        } else {
-          alert(data.message);
+          navigate(`/department/${department}/documents`);
         }
       })
-      .catch((err) => console.error("Error saving document:", err));
+      .catch((err) => {
+        console.error("Error saving document:", err);
+        alert("An error occurred while saving the document.");
+      });
   };
 
   return (
@@ -71,7 +70,6 @@ const EditorPage = () => {
       <Sidebar />
       <div className="document-repository-content">
         <h2>{isEditing ? "Edit Document" : "Create New Document"}</h2>
-
         <input
           type="text"
           className="title-input"
@@ -82,18 +80,14 @@ const EditorPage = () => {
         <JoditEditor
           value={editorContent}
           onChange={(newContent) => setEditorContent(newContent)}
-          config={{
-            readonly: false,
-            height: 400,
-          }}
+          config={{ readonly: false, height: 400 }}
         />
-
         <button className="save-btn" onClick={saveDocument}>
           {isEditing ? "Save Changes" : "Create Document"}
         </button>
         <button
           className="cancel-btn"
-          onClick={() => navigate(`/department/${spaceName}/documents`)} // Navigate back to the specific department's document section
+          onClick={() => navigate(`/department/${department}/documents`)}
         >
           Cancel
         </button>

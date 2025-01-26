@@ -34,6 +34,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // Login route
+// Login route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -52,13 +53,15 @@ router.post('/login', async (req, res) => {
 
     res.status(200).json({ 
       message: 'Login successful', 
-      user, 
+      userId: user._id,  // Send userId (MongoDB _id)
       isAdmin 
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
 
 
 // Forgot Password route

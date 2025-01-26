@@ -54,13 +54,14 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/new-password" element={<NewPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/documentrepository" element={<DocumentRepository />} />
+        {/* <Route path="/documentrepository" element={<DocumentRepository />} /> */}
         {/* <Route path="/department/:deptName/documents" element={<DocumentRepository />} /> */}
-        <Route path="/department/:spaceName/documents" element={<DocumentRepository />} /> // Update the path to include spaceName
+        {/* <Route path="/department/:spaceName/documents" element={<DocumentRepository />} /> // Update the path to include spaceName */}
         {/* <Route path="/documents/edit/:id" component={EditorPage} /> */}
+        <Route path="/department/:department/documents" element={<DocumentRepository />} />
+        <Route path="/department/:department/documents/create" element={<EditorPage />} />
+        <Route path="/department/:department/documents/edit/:id" element={<EditorPage />} />
 
-        <Route path="/documents/create" element={<EditorPage />} />
-        <Route path="/documents/edit/:id" element={<EditorPage />} />
 
         {/* <Route path="/documents/edit/:id" element={<EditorPage />} /> */}
 

@@ -4,21 +4,53 @@ const Document = require("../models/Document");
 
 // Create a new document
 router.post("/createDocument", async (req, res) => {
-  try {
-    const { title, content, userId } = req.body;
+    try {
+      const { title, content, userId, department } = req.body;
+  
+      // Validate the incoming data
+      if (!title || !content || !userId || !department) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields (title, content, userId, department) are required",
+        });
+      }
+  
+      const newDocument = new Document({
+        title,
+        content,
+        userId,
+        department, // Include department
+      });
+  
+      await newDocument.save();
+      res.status(201).json({
+        success: true,
+        message: "Document created!",
+        newDocument,
+      });
+    } catch (error) {
+      console.error("Error creating document:", error); // Log the error for better debugging
+      res.status(500).json({
+        success: false,
+        message: "Error creating document",
+        error: error.message, // Send the error message for better clarity
+      });
+    }
+  });
+  
 
-    const newDocument = new Document({
-      title,
-      content,
-      userId,
-    });
-
-    await newDocument.save();
-    res.status(201).json({ success: true, message: "Document created!", newDocument });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Error creating document", error });
-  }
-});
+  // get documents by department
+  router.get("/getDocumentsByDepartment/:department", async (req, res) => {
+    try {
+      const { department } = req.params;
+  
+      const documents = await Document.find({ department });
+      res.status(200).json(documents);
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error fetching documents", error });
+    }
+  });
+  
 
 // Get all documents
 router.get("/getDocuments", async (req, res) => {
