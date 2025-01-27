@@ -62,7 +62,7 @@
   justify-content: center;
   align-items: center;
   border-radius: 8px;
-  color: white; /* Icon color */
+  color: rgb(255, 255, 255); /* Icon color */
   font-size: 20px; /* Icon size */
   margin-right: 15px;
 }

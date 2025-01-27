@@ -1,0 +1,46 @@
+.document-view {
+  margin: 40px auto;
+  padding: 20px;
+  max-width: 800px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  margin-left: 450px; /* Add space for sidebar */
+  margin-top: 110px;
+}
+
+.document-view h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  text-align: center;
+}
+
+.document-content {
+  margin-bottom: 20px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.document-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.document-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.document-actions button:first-child {
+  background-color: #007bff;
+  color: white;
+}
+
+.document-actions button:last-child {
+  background-color: #28a745;
+  color: white;
+}

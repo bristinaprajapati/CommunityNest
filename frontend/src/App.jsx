@@ -14,6 +14,7 @@ import DocumentRepository from './Department/DocumentRepository.jsx'; // Documen
 import EditorPage from "./Department/EditorPage";
 import AdminUserMeetings from './Meetings/meeting.jsx';
 import AdminUserEvents from './Events/event.jsx'; 
+import Modal from './Department/Modal.jsx';
 
 
 
@@ -61,7 +62,7 @@ function App() {
         <Route path="/department/:department/documents" element={<DocumentRepository />} />
         <Route path="/department/:department/documents/create" element={<EditorPage />} />
         <Route path="/department/:department/documents/edit/:id" element={<EditorPage />} />
-
+        <Route path="/department/:department/documents/view/:id" element={<Modal />} />
 
         {/* <Route path="/documents/edit/:id" element={<EditorPage />} /> */}
 

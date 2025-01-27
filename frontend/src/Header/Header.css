@@ -1,0 +1,93 @@
+/* Common styles for the entire app */
+.App {
+    text-align: center;
+  }
+  
+  .App-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: black;
+  
+    padding: 20px;
+    color: white;
+    z-index: 2;
+    position: fixed; /* Fix the header at the top */
+    top: 0; /* Make sure it's at the top of the screen */
+    left: 0;
+    width: 97.5%;
+  
+  }
+  
+  .App-logo {
+    height: 55px;
+  }
+  
+  .Header-right {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .Icon {
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  
+  /* Register Button */
+  .Register-btn {
+    padding: 8px 20px;
+    background-color: white;
+    color: #333;
+    border: 2px solid #333;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: bold;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  .Register-btn:hover {
+    background-color: #333;
+    color: white;
+  }
+  
+  /* App Body Layout */
+  .App-body {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .Main-content {
+    flex: 1;
+    padding: 20px;
+    background-color: #eaeaea;
+    text-align: left;
+  }
+  
+  /* Logout Button */
+  .Logout-btn {
+    
+    padding: 8px 20px;
+    background-color: white;
+    color: #333;
+    border: 2px solid #333;
+    border-radius: 25px;
+    text-decoration: none;
+    font-weight: bold;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  .Logout-btn:hover {
+    background-color: #333;
+    color: white;
+  }
+  
+  .Logout-btn:active {
+    color: #060606;  /* Even darker red when clicked */
+    transform: scale(0.98);  /* Shrink effect on click */
+  }
+  
