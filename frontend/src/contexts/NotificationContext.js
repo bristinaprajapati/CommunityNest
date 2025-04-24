@@ -205,7 +205,7 @@ export const NotificationProvider = ({ children }) => {
       setIsConnected(false);
     });
 
-    fetchNotifications();
+    // fetchNotifications();
 
     return () => {
       // Don't disconnect here - let the socket live for other features

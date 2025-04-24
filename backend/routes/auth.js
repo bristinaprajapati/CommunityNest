@@ -1,4 +1,3 @@
-
 const express = require("express");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto"); // To generate reset tokens
@@ -7,7 +6,7 @@ const router = express.Router();
 const Community = require("../models/Community");
 const authenticate = require("./authenticate"); 
 const jwt = require('jsonwebtoken'); 
-const config = require('../config');
+
 
 
 
@@ -170,8 +169,7 @@ router.post('/login', async (req, res) => {
     const isAdmin = email === 'bristinaprajapati99@gmail.com'; 
 
     // Generate JWT token (use environment variable for secret key)
-    // const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '2h' });
-    const token = jwt.sign({ userId: user._id }, config.JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '2h' });
 
     console.log('Login successful, token generated'); // Log token generation success
 
@@ -465,6 +463,3 @@ router.get("/user/:id", authenticate, async (req, res) => {
 });
 
 module.exports = router;
-
-
-

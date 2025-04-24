@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom'; // Add useLocation
 import './sidebar.css';
-import { FaHome, FaSitemap, FaUsers, FaCalendarAlt, FaUserFriends } from 'react-icons/fa'; 
+import { FaHome, FaSitemap, FaUsers, FaCalendarAlt, FaUserFriends,FaNewspaper } from 'react-icons/fa'; 
 import axios from 'axios';
 import logo2 from '../logo.png';
 
@@ -105,6 +105,16 @@ const Sidebar = () => {
             <FaHome />
           </div>
           <span className="Sidebar-text">Dashboard</span>
+        </Link>
+
+        <Link 
+          to="/feed" 
+          className={`Sidebar-item ${location.pathname === '/feed' ? 'active' : ''}`}
+        >
+          <div className="Sidebar-icon" style={{ backgroundColor: '#dfbd01', color: 'white' }}>
+            <FaNewspaper />
+          </div>
+          <span className="Sidebar-text">Feed</span>
         </Link>
 
         <Link 

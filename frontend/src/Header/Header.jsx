@@ -248,6 +248,18 @@ const Header = () => {
           <span className="Message-badge">3</span>
         </div>
 
+         {/* Message Icon */}
+         {/* <div
+          className="Messages-icon-wrapper"
+          onClick={() => navigate("/messenger")}
+          style={{ cursor: "pointer" }}
+        >
+          <FontAwesomeIcon icon={faComment} className="Icon" />
+          <span className="Messages-badge">10</span>
+        </div>
+
+ */}
+
         {/* Notification Icon */}
         <div className="Notification-container" ref={notificationRef}>
           <div

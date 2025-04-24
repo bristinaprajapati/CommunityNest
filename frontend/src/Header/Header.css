@@ -300,6 +300,13 @@
 }
 
 
+.Messages-icon-wrapper {
+  display: flex;
+  align-items: center;
+  text-decoration: none; /* Removes underline from link */
+  color: inherit; /* Keeps the icon color consistent */
+}
+
 
 
 

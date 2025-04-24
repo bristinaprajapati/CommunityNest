@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Schema.Types;
 
 const GroupSchema = new mongoose.Schema({
   name: {
@@ -11,16 +12,16 @@ const GroupSchema = new mongoose.Schema({
     trim: true
   },
   creator: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: ObjectId,
     ref: 'User',
     required: true
   },
   members: [{
-    type: mongoose.Schema.Types.ObjectId,
+    type: ObjectId,
     ref: 'User'
   }],
   admins: [{
-    type: mongoose.Schema.Types.ObjectId,
+    type: ObjectId,
     ref: 'User'
   }],
   createdAt: {
@@ -28,7 +29,7 @@ const GroupSchema = new mongoose.Schema({
     default: Date.now
   },
   lastMessage: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: ObjectId,
     ref: 'Message'
   }
 }, {
@@ -47,11 +48,25 @@ const GroupSchema = new mongoose.Schema({
 GroupSchema.index({ members: 1 });
 GroupSchema.index({ creator: 1 });
 
-// Virtuals
-GroupSchema.virtual('messages', {
+// Add virtual for unread counts
+GroupSchema.virtual('unreadCount', {
   ref: 'Message',
   localField: '_id',
-  foreignField: 'group'
+  foreignField: 'group',
+  count: true
 });
+
+// Add method to mark messages as read
+GroupSchema.methods.markAsRead = async function(userId) {
+  const userIdObj = new ObjectId(userId);
+  await Message.updateMany(
+    {
+      group: this._id,
+      sender: { $ne: userIdObj },
+      readBy: { $ne: userIdObj }
+    },
+    { $addToSet: { readBy: userIdObj } }
+  );
+};
 
 module.exports = mongoose.model('Group', GroupSchema);

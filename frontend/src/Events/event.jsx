@@ -21,7 +21,7 @@ const Events = () => {
     status: "Private", // Default status set to "Private"
   });
   const [loading, setLoading] = useState(false);
-
+ 
   const navigate = useNavigate();
 
   const handleEventClick = (eventId) => {

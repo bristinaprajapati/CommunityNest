@@ -199,8 +199,9 @@ router.delete('/:groupId/members', authenticate, async (req, res) => {
 router.get('/:groupId/messages', authenticate, async (req, res) => {
   try {
     const { groupId } = req.params;
+    const { before } = req.query; // For pagination
 
-    // Check if user is a member of the group
+    // Check membership
     const isMember = await Group.exists({
       _id: groupId,
       members: req.userId
@@ -210,23 +211,29 @@ router.get('/:groupId/messages', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this group' });
     }
 
-    const messages = await Message.find({ 
+    // Build query
+    const query = { 
       group: groupId,
       type: 'group'
-    })
-    .sort({ timestamp: 1 })
-    .populate('sender', 'username profileImage')
-    .populate('group', 'name');
+    };
 
-    res.json(messages);
+    if (before) {
+      query.timestamp = { $lt: new Date(before) };
+    }
+
+    const messages = await Message.find(query)
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .populate('sender', 'username profileImage')
+      .lean();
+
+    res.json(messages.reverse()); // Return oldest first for proper display
   } catch (error) {
     console.error('Error fetching group messages:', error);
-    res.status(500).json({ 
-      message: 'Error fetching group messages',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Error fetching messages' });
   }
 });
+
 
 
 
@@ -234,21 +241,22 @@ router.get('/:groupId/messages', authenticate, async (req, res) => {
 router.post('/:groupId/messages', authenticate, async (req, res) => {
   try {
     const { content } = req.body;
+    const { groupId } = req.params;
 
-    // Check if user is a member of the group
-    const isMember = await Group.exists({
-      _id: req.params.groupId,
+    // Verify membership
+    const group = await Group.findOne({
+      _id: groupId,
       members: req.userId
-    });
+    }).lean();
 
-    if (!isMember) {
+    if (!group) {
       return res.status(403).json({ message: 'Not a member of this group' });
     }
 
-    // Create and save message
+    // Create message
     const message = new Message({
       sender: req.userId,
-      group: req.params.groupId,
+      group: groupId,
       content,
       type: 'group',
       timestamp: new Date()
@@ -257,21 +265,27 @@ router.post('/:groupId/messages', authenticate, async (req, res) => {
     const savedMessage = await message.save();
     
     // Update group's last message
-    await Group.findByIdAndUpdate(req.params.groupId, {
+    await Group.findByIdAndUpdate(groupId, {
       lastMessage: savedMessage._id
     });
 
-    // Populate sender details
-    const populatedMessage = await Message.populate(savedMessage, [
+    // Populate for response
+    const populated = await Message.populate(savedMessage, [
       { path: 'sender', select: 'username profileImage' },
       { path: 'group', select: 'name' }
     ]);
 
-    res.status(201).json(populatedMessage);
+    // Emit socket event
+    req.app.get('io').to(`group_${groupId}`).emit('group-message', {
+      message: populated.toObject()
+    });
+
+    res.status(201).json(populated);
   } catch (error) {
-    console.error('Error saving group message:', error);
-    res.status(500).json({ message: 'Error saving group message' });
+    console.error('Error sending group message:', error);
+    res.status(500).json({ message: 'Error sending message' });
   }
 });
+
 
 module.exports = router;

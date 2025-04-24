@@ -35,6 +35,8 @@ import MembersPage from "./Member/member.jsx";
 import { NotificationProvider } from './contexts/NotificationContext'; // Updated import path
 import { AuthProvider } from './AuthContext';
 import Chat from './Chat/chat';
+import Feed from './feed/feed'; 
+
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState("Departments");
@@ -92,7 +94,8 @@ function App() {
           />
           {/* chats */}
           <Route path="/chat/:chatId?" element={<Chat />} />
-
+          <Route path="/feed" element={<Feed />} />
+    
 
           <Route path="/view/:filename/:fileType" element={<FileViewer />} />
           <Route path="/members" element={<MembersPage />} />
