@@ -174,7 +174,9 @@ const Chat = () => {
     
     const onConnect = () => {
       console.log("Connected to socket server");
-      socket.emit('join-groups', currentUserId);
+      // Authenticate and join groups on connect
+      const token = localStorage.getItem("token");
+      socket.emit('authenticate', token);
     };
   
     // Private message handler (unchanged from your original)
@@ -207,44 +209,37 @@ const Chat = () => {
       }
     };
   
-    // New group message handler
-    const onGroupMessage = (data) => {
-      const { message } = data;
-      console.log('New group message received:', message);
-      
-      // Check if we're a member of this group
-      const isMember = message.group?.members?.some(m => m._id === currentUserId);
-      if (!isMember) return;
+ // Group message handler
+ const onGroupMessage = (data) => {
+  const { message, groupId } = data;
+  console.log('New group message received:', message);
   
-      // Check if we're currently viewing this group
-      const isViewingThisGroup = selectedGroup && selectedGroup._id === message.group._id;
-      
-      // Update messages if viewing this group
-      if (isViewingThisGroup) {
-        setMessages(prev => [...prev, message]);
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 50);
-      }
-      
-      // Update groups list with latest message
-      setGroups(prev => prev.map(g => 
-        g._id === message.group._id ? { ...g, lastMessage: message } : g
-      ));
+  // Check if message belongs to currently selected group
+  if (selectedGroup && selectedGroup._id === groupId) {
+    setMessages(prev => [...prev, message]);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  }
   
-      // Update unread count if not viewing this group
-      if (!isViewingThisGroup) {
-        setUnreadCounts(prev => ({
-          ...prev,
-          [message.group._id]: (prev[message.group._id] || 0) + 1
-        }));
-      }
-    };
+  // Update groups list with latest message
+  setGroups(prev => prev.map(g => 
+    g._id === groupId ? { ...g, lastMessage: message } : g
+  ));
+  
+  // Update unread count if not viewing this group
+  if (!selectedGroup || selectedGroup._id !== groupId) {
+    setUnreadCounts(prev => ({
+      ...prev,
+      [groupId]: (prev[groupId] || 0) + 1
+    }));
+  }
+};
   
     // Event listeners for both types
     socket.on("connect", onConnect);
     socket.on("refetch", onPrivateMessage); // For private messages
-    socket.on("group-message", onGroupMessage); // For group messages
+    socket.on("group-message", onGroupMessage);
   
     return () => {
       socket.off("connect", onConnect);
@@ -396,9 +391,9 @@ const Chat = () => {
     if (!newMessage.trim() || !selectedGroup) return;
   
     const groupId = selectedGroup._id;
+    const tempId = Date.now().toString();
     
     // Optimistic UI update
-    const tempId = Date.now().toString();
     const optimisticMessage = {
       _id: tempId,
       sender: {
@@ -421,12 +416,11 @@ const Chat = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:5001/api/group/" + groupId + "/messages",
+        `http://localhost:5001/api/group/${groupId}/messages`,
         { content: newMessage },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-  
-      // Replace optimistic message with real one
+
       setMessages(prev => [
         ...prev.filter(m => m._id !== tempId),
         response.data
@@ -434,9 +428,10 @@ const Chat = () => {
       
       // Emit via socket
       socketRef.current.emit("group-message", {
-        groupId: groupId,
+        groupId,
         content: newMessage,
-        sender: currentUserId
+        senderId: currentUserId,
+        token // Include token for authentication
       });
   
       // Update groups list
@@ -449,7 +444,6 @@ const Chat = () => {
       setError(err.response?.data?.message || "Failed to send message");
     }
   };
-
 
   // --- User and Group Selection Functions ---
 

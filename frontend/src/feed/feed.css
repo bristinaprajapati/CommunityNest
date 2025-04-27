@@ -14,7 +14,7 @@
   
   .feed-header h2 {
     color: #333;
-    font-size: 24px;
+    font-size: 22px;
   }
   
   /* Post Form Styles */
@@ -146,11 +146,15 @@
   .post-content {
     margin-bottom: 12px;
   }
+  .post-content p{
+    text-align: left;
+  }
   
   .post-text {
     margin: 0 0 10px 0;
     font-size: 15px;
     line-height: 1.4;
+    
   }
   
   .post-image-container {

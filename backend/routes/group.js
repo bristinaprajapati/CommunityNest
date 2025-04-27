@@ -236,68 +236,49 @@ router.get('/:groupId/messages', authenticate, async (req, res) => {
 
 
 
-
-// Send message to group
+// Add message to group
 router.post('/:groupId/messages', authenticate, async (req, res) => {
   try {
     const { content } = req.body;
-    const { groupId } = req.params;
-
-    // Validate groupId
-    if (!mongoose.Types.ObjectId.isValid(groupId)) {
-      return res.status(400).json({ message: 'Invalid group ID' });
-    }
-
-    // Verify membership more robustly
+    const groupId = req.params.groupId;
+    
+    // Verify user is member of group
     const group = await Group.findOne({
       _id: groupId,
       members: req.userId
-    }).lean();
-
+    });
+    
     if (!group) {
-      return res.status(403).json({ 
-        message: 'Not a member of this group',
-        details: `User ${req.userId} not found in group ${groupId} members`
-      });
+      return res.status(403).json({ message: 'Not a member of this group' });
     }
-
-    // Create and save message
+    
+    // Create message
     const message = new Message({
       sender: req.userId,
       group: groupId,
       content,
-      type: 'group',
-      timestamp: new Date()
+      type: 'group'
     });
-
-    const savedMessage = await message.save();
+    
+    await message.save();
     
     // Update group's last message
     await Group.findByIdAndUpdate(groupId, {
-      lastMessage: savedMessage._id,
+      lastMessage: message._id,
       updatedAt: new Date()
     });
-
-    // Populate sender details
-    const populated = await Message.populate(savedMessage, [
-      { path: 'sender', select: 'username profileImage' },
-      { path: 'group', select: 'name members' }
-    ]);
-
-    // Emit socket event
-    req.app.get('io').to(`group_${groupId}`).emit('group-message', {
-      message: populated.toObject()
+    
+    // Populate sender info
+    const populatedMessage = await Message.populate(message, {
+      path: 'sender',
+      select: 'username profileImage'
     });
-
-    res.status(201).json(populated);
+    
+    res.status(201).json(populatedMessage);
   } catch (error) {
-    console.error('Error sending group message:', error);
-    res.status(500).json({ 
-      message: 'Error sending message',
-      error: error.message
-    });
+    console.error('Error adding group message:', error);
+    res.status(500).json({ message: 'Error adding message' });
   }
 });
-
 
 module.exports = router;

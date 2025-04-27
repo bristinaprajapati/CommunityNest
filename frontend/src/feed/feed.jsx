@@ -1,13 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
 import Sidebar from "../Sidebar/sidebar.jsx";
-import './feed.css';
-import { FiMoreVertical, FiHeart, FiMessageSquare, FiShare2 } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import "./feed.css";
+import {
+  FiMoreVertical,
+  FiHeart,
+  FiMessageSquare,
+  FiShare2,
+  FiUser,
+} from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { FaUserCircle } from "react-icons/fa";
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
-  const [newPostText, setNewPostText] = useState('');
+  const [newPostText, setNewPostText] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -22,25 +29,25 @@ const Feed = () => {
 
   const fetchCurrentUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5001/api/auth/user', {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5001/api/auth/user", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUser(response.data);
     } catch (error) {
-      console.error('Error fetching user:', error);
+      console.error("Error fetching user:", error);
     }
   };
 
   const fetchPosts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5001/api/posts', {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5001/api/posts", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPosts(response.data.posts);
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error("Error fetching posts:", error);
     }
   };
 
@@ -49,35 +56,35 @@ const Feed = () => {
     if (!newPostText.trim() && !selectedImage) return;
 
     const formData = new FormData();
-    formData.append('content', newPostText);
+    formData.append("content", newPostText);
     if (selectedImage) {
-      formData.append('image', selectedImage);
+      formData.append("image", selectedImage);
     }
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
 
       const response = await axios.post(
-        'http://localhost:5001/api/posts',
+        "http://localhost:5001/api/posts",
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
       setPosts([response.data.post, ...posts]);
-      setNewPostText('');
+      setNewPostText("");
       setSelectedImage(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     } catch (error) {
-      console.error('Error creating post:', error);
-      alert(error.response?.data?.message || 'Error creating post');
+      console.error("Error creating post:", error);
+      alert(error.response?.data?.message || "Error creating post");
     } finally {
       setLoading(false);
     }
@@ -92,7 +99,7 @@ const Feed = () => {
 
   const handleLike = async (postId) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await axios.post(
         `http://localhost:5001/api/posts/${postId}/like`,
         {},
@@ -101,43 +108,51 @@ const Feed = () => {
         }
       );
 
-      setPosts(posts.map(post => {
-        if (post._id === postId) {
-          return {
-            ...post,
-            likes: response.data.likes,
-            liked: response.data.liked,
-          };
-        }
-        return post;
-      }));
+      setPosts(
+        posts.map((post) => {
+          if (post._id === postId) {
+            return {
+              ...post,
+              likes: response.data.likes,
+              liked: response.data.liked,
+            };
+          }
+          return post;
+        })
+      );
     } catch (error) {
-      console.error('Error liking post:', error);
+      console.error("Error liking post:", error);
     }
   };
 
   const deletePost = async (postId, e) => {
     e.stopPropagation();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       await axios.delete(`http://localhost:5001/api/posts/${postId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setPosts(posts.filter(post => post._id !== postId));
+      setPosts(posts.filter((post) => post._id !== postId));
     } catch (error) {
-      console.error('Error deleting post:', error);
-      alert('Failed to delete post');
+      console.error("Error deleting post:", error);
+      alert("Failed to delete post");
     }
   };
 
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    const options = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
   return (
     <div className="feed-container">
-        <Sidebar />
+      <Sidebar />
       <div className="feed-header">
         <h2>Community Feed</h2>
       </div>
@@ -163,14 +178,14 @@ const Feed = () => {
                 accept="image/*"
                 onChange={handleImageChange}
                 ref={fileInputRef}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
               {selectedImage && (
                 <span className="image-preview-text">{selectedImage.name}</span>
               )}
             </div>
             <button type="submit" className="post-button" disabled={loading}>
-              {loading ? 'Posting...' : 'Post'}
+              {loading ? "Posting..." : "Post"}
             </button>
           </div>
         </form>
@@ -182,32 +197,43 @@ const Feed = () => {
             <p>No posts yet. Be the first to share something!</p>
           </div>
         ) : (
-          posts.map(post => (
+          posts.map((post) => (
             <div key={post._id} className="post">
               <div className="post-header">
-                <img 
-                  src={post.author.profileImage || 'https://i.pravatar.cc/150?img=3'} 
-                  alt={post.author.username} 
-                  className="post-avatar" 
-                />
+                {post.author.profileImage ? (
+                  <img
+                    src={post.author.profileImage}
+                    alt={post.author.username}
+                    className="post-avatar"
+                  />
+                ) : (
+                  <FaUserCircle
+                    className="post-avatar default-avatar"
+                    size={40}
+                  />
+                )}
                 <div className="post-author">
                   <span className="author-name">{post.author.username}</span>
-                  <span className="post-time">{formatDate(post.createdAt)}</span>
+                  <span className="post-time">
+                    {formatDate(post.createdAt)}
+                  </span>
                 </div>
                 {user && user._id === post.author._id && (
                   <div className="post-options">
-                    <button 
+                    <button
                       className="options-button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDropdownOpenId(dropdownOpenId === post._id ? null : post._id);
+                        setDropdownOpenId(
+                          dropdownOpenId === post._id ? null : post._id
+                        );
                       }}
                     >
                       <FiMoreVertical />
                     </button>
                     {dropdownOpenId === post._id && (
                       <div className="post-dropdown-menu">
-                        <button 
+                        <button
                           className="dropdown-item"
                           onClick={(e) => deletePost(post._id, e)}
                         >
@@ -227,19 +253,19 @@ const Feed = () => {
                 )}
               </div>
               <div className="post-actions">
-                <button 
-                  onClick={() => handleLike(post._id)} 
-                  className={`like-button ${post.liked ? 'liked' : ''}`}
+                <button
+                  onClick={() => handleLike(post._id)}
+                  className={`like-button ${post.liked ? "liked" : ""}`}
                 >
-                  <FiHeart className={post.liked ? 'liked' : ''} />
+                  <FiHeart className={post.liked ? "liked" : ""} />
                   {post.likes > 0 && <span>{post.likes}</span>}
                 </button>
                 <button className="comment-button">
                   <FiMessageSquare /> Comment
                 </button>
-                <button className="share-button">
+                {/* <button className="share-button">
                   <FiShare2 /> Share
-                </button>
+                </button> */}
               </div>
             </div>
           ))
