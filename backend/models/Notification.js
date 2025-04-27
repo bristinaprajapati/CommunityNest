@@ -25,6 +25,17 @@ const notificationSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
+  },
+  isCommunityMember: {
+    type: Boolean,
+    required: true
+  },
+  eventData: {
+    title: String,
+    date: String,
+    time: String,
+    image: String,
+    organizer: String
   }
 }, { timestamps: true });
 

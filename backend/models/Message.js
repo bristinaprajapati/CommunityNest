@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
@@ -24,6 +23,15 @@ const MessageSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
+  },
+  readBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  status: {
+    type: String,
+    enum: ['sending', 'sent', 'delivered', 'read'],
+    default: 'sent'
   },
   group: {
     type: mongoose.Schema.Types.ObjectId,
@@ -52,10 +60,10 @@ const MessageSchema = new mongoose.Schema({
 // Indexes
 MessageSchema.index({ sender: 1, recipient: 1 });
 MessageSchema.index({ recipient: 1, sender: 1 });
-
-// Add index to your MessageSchema for better performance
-MessageSchema.index({ recipient: 1, sender: 1, read: 1 });
+MessageSchema.index({ group: 1, timestamp: 1 }); // Important for group chat
+MessageSchema.index({ recipient: 1, read: 1 });
 MessageSchema.index({ group: 1, read: 1 });
+MessageSchema.index({ 'readBy': 1 });
 
 // Virtuals
 MessageSchema.virtual('senderObj', {
@@ -71,7 +79,5 @@ MessageSchema.virtual('recipientObj', {
   foreignField: '_id',
   justOne: true
 });
-
-
 
 module.exports = mongoose.model('Message', MessageSchema);

@@ -6,54 +6,47 @@ const Community = require('../models/Community');
 const User = require('../models/User');
 const authenticate = require('./authenticate');
 
-const sendNoticeNotifications = async (io, notice, userId, communityId, isUpdate = false) => {
+// In routes/notice.js
+const sendNoticeNotifications = async (io, notice, userId, communityId) => {
   try {
-    const community = await Community.findById(communityId)
-      .populate('members', '_id');
-    
-    if (!community) return;
+    const [community, sender] = await Promise.all([
+      Community.findById(communityId).populate('members'),
+      User.findById(userId)
+    ]);
 
-    const sender = await User.findById(userId, 'username name');
-    const membersToNotify = community.members
-      .filter(member => member._id.toString() !== userId.toString())
-      .map(member => member._id.toString());
-
-    if (membersToNotify.length === 0) return;
-
-    const action = isUpdate ? 'updated' : 'published';
-    const notifications = await Promise.all(membersToNotify.map(async memberId => {
-      const notification = new Notification({
-        recipient: memberId,
-        sender: userId,
-        message: `Notice ${action}: ${notice.content.substring(0, 50)}${notice.content.length > 50 ? '...' : ''}`,
-        type: 'notice',
-        relatedEntity: notice._id,
-        action: isUpdate ? 'update' : 'create'
-      });
-      
-      await notification.save();
-      
-      const notificationData = {
-        ...notification.toObject(),
-        sender: {
+    // Only send to community members (excluding sender)
+    await Promise.all(community.members.map(async member => {
+      if (member._id.toString() !== userId.toString()) {
+        const notification = new Notification({
+          recipient: member._id,
+          sender: userId,
+          message: `New Notice: ${notice.content.substring(0, 50)}...`,
+          type: 'notice',
+          relatedEntity: notice._id,
+          isCommunityMember: true,
+          noticeData: {
+            content: notice.content,
+            community: community.name
+          }
+        });
+        
+        await notification.save();
+        
+        const notificationData = notification.toObject();
+        notificationData.sender = {
           _id: sender._id,
           username: sender.username,
           name: sender.name
-        },
-        createdAt: notification.createdAt.toISOString()
-      };
-      
-      io.to(`user_${memberId}`).emit('new-notification', notificationData);
-      
-      return notification;
+        };
+        
+        io.to(`user_${member._id}`).emit('new-notification', notificationData);
+      }
     }));
-
-    console.log(`Sent ${notifications.length} ${action} notifications`);
   } catch (error) {
-    console.error('Notification error:', error);
+    console.error('Error sending notice notifications:', error);
   }
 };
-  
+
 // Get all notices for community
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -160,7 +153,7 @@ router.put('/:id', authenticate, async (req, res) => {
 // Create new notice - 
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, createNotification } = req.body;
     
     if (!content || content.trim().length < 5) {
       return res.status(400).json({ 
@@ -204,13 +197,14 @@ router.post('/', authenticate, async (req, res) => {
     const populatedNotice = await Notice.findById(notice._id)
       .populate('createdBy', 'username');
 
-    // Send notifications
-    try {
-      const io = req.app.get('io');
-      await sendNoticeNotifications(io, notice, req.userId, user.managedCommunity);
-    } catch (notifError) {
-      console.error("Notification error (non-critical):", notifError);
-      // Continue even if notifications fail
+    // Send notifications if requested
+    if (createNotification) {
+      try {
+        const io = req.app.get('io');
+        await sendNoticeNotifications(io, notice, req.userId, user.managedCommunity);
+      } catch (notifError) {
+        console.error("Notification error (non-critical):", notifError);
+      }
     }
 
     res.json({ 
@@ -218,8 +212,7 @@ router.post('/', authenticate, async (req, res) => {
       notice: populatedNotice,
       message: "Notice published successfully"
     });
-
-  } catch (error) {
+  }  catch (error) {
     console.error('Error creating notice:', error);
     res.status(500).json({ 
       success: false, 

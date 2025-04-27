@@ -1,3 +1,4 @@
+
 const express = require("express");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
@@ -338,96 +339,107 @@ router.post('/google-sheets/add-row', async (req, res) => {
   }
 });
 
-// Notification sending function for events
-const sendEventNotifications = async (io, event, userId, communityId) => {
-  try {
-    const community = await Community.findById(communityId)
-      .populate('members', '_id');
-    
-    if (!community) return;
+// // Notification sending function for events
+// const sendEventNotifications = async (io, event, userId, communityId) => {
+//   try {
+//     const community = await Community.findById(communityId).populate('members');
+//     const allUsers = await User.find({ _id: { $ne: userId } });
+//     const sender = await User.findById(userId);
 
-    const sender = await User.findById(userId, 'username name');
-    const membersToNotify = community.members
-      .filter(member => member._id.toString() !== userId.toString())
-      .map(member => member._id.toString());
-
-    if (membersToNotify.length === 0) return;
-
-    const notifications = await Promise.all(membersToNotify.map(async memberId => {
-      const notification = new Notification({
-        recipient: memberId,
-        sender: userId,
-        message: `New event announcement: ${event.title} is happening on ${event.date}`,
-        type: 'event',
-        relatedEntity: event._id
-      });
-      await notification.save();
+//     await Promise.all(allUsers.map(async user => {
+//       const isCommunityMember = community.members.some(m => m._id.equals(user._id));
       
-      const notificationData = {
-        ...notification.toObject(),
-        sender: {
-          _id: sender._id,
-          username: sender.username,
-          name: sender.name
-        },
-        createdAt: notification.createdAt.toISOString()
-      };
+//       const notification = new Notification({
+//         recipient: user._id,
+//         sender: userId,
+//         message: `New Event: ${event.title}`,
+//         type: 'event',
+//         relatedEntity: event._id,
+//         isCommunityMember,
+//         eventData: {  
+//           title: event.title,
+//           date: event.date,
+//           time: event.time,
+//           image: event.image,
+//           organizer: sender.username
+//         }
+//       });
       
-      io.to(`user_${memberId}`).emit('new-notification', notificationData);
+//       await notification.save();
       
-      return notification;
-    }));
+//       const notificationData = notification.toObject();
+//       notificationData.sender = {
+//         _id: sender._id,
+//         username: sender.username,
+//         name: sender.name
+//       };
+      
+//       io.to(`user_${user._id}`).emit('new-notification', notificationData);
+      
+//       return notification;
+//     }));
 
-    console.log(`Sent ${notifications.length} event notifications`);
-  } catch (error) {
-    console.error('Event notification error:', error);
-  }
-};
+//     console.log(`Sent ${notifications.length} event notifications`);
+//   } catch (error) {
+//     console.error('Event notification error:', error);
+//   }
+// };
 
-// Update event status (toggle between Private and Announcement)
+
+// In routes/event.js (status update route)
 router.put("/:id/status", authenticate, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    
-    if (!event) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Event not found" 
-      });
-    }
-
-    // Check if user is authorized (event creator or community admin)
-    if (event.createdBy.toString() !== req.userId) {
-      return res.status(403).json({ 
-        success: false,
-        message: "Unauthorized to update this event" 
-      });
-    }
-
     const newStatus = event.status === "Private" ? "Announcement" : "Private";
     event.status = newStatus;
     await event.save();
 
-    // If the event is being published as an announcement, send notifications
     if (newStatus === "Announcement") {
-      const user = await User.findById(req.userId);
-      if (user && user.managedCommunity) {
-        const io = req.app.get('io');
-        await sendEventNotifications(io, event, req.userId, user.managedCommunity);
-      }
+      const [organizer, allUsers] = await Promise.all([
+        User.findById(req.userId),
+        User.find({ _id: { $ne: req.userId } }) // All users except creator
+      ]);
+
+      const community = await Community.findOne({ adminId: req.userId });
+      const io = req.app.get('io');
+
+      await Promise.all(allUsers.map(async user => {
+        const isMember = community?.members.includes(user._id) || false;
+        
+        const notification = new Notification({
+          recipient: user._id,
+          sender: req.userId,
+          message: `Announcement: New Event: ${event.title}`,
+          type: 'event',
+          relatedEntity: event._id,
+          isCommunityMember: isMember,
+          eventData: {
+            title: event.title,
+            date: event.date,
+            time: event.time,
+            image: event.image,
+            organizer: organizer.username
+          }
+        });
+
+        await notification.save();
+        
+        const notificationData = notification.toObject();
+        notificationData.sender = {
+          _id: organizer._id,
+          username: organizer.username,
+          name: organizer.name || organizer.username
+        };
+
+        io.to(`user_${user._id}`).emit('new-notification', notificationData);
+      }));
     }
 
-    res.json({ 
-      success: true, 
-      event,
-      message: `Event status changed to ${newStatus}`
-    });
+    res.json({ success: true, event });
   } catch (error) {
     console.error("Error updating event status:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Internal Server Error" 
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 module.exports = router;

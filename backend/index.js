@@ -67,33 +67,41 @@ io.on('connection', (socket) => {
   //   io.emit('refetch',{message})
   // })
 
-  // Handle authentication
-  socket.on('authenticate', async (token) => {
-    try {
-      const decoded = jwt.verify(token, config.JWT_SECRET);
-      socket.userId = decoded.userId;
-      socket.username = decoded.username;
-      
-      // Store the connection
-      connectedClients.set(decoded.userId, socket);
-      
-      // Join user's personal room
-      socket.join(`user_${decoded.userId}`);
-      
-      // Join all group rooms for this user
-      const userGroups = await Group.find({ members: decoded.userId });
-      userGroups.forEach(group => {
-        socket.join(`group_${group._id}`);
-      });
-      
-      socket.emit('authenticated', { success: true });
-      updateOnlineUsers();
-    } catch (error) {
-      console.error('Socket authentication error:', error);
-      socket.emit('authenticated', { success: false, error: 'Authentication failed' });
-      socket.disconnect();
+ // Replace your authenticate handler with this:
+
+socket.on('authenticate', async (token) => {
+  try {
+    // Use process.env.JWT_SECRET for consistency with auth.js
+    console.log('Authenticating socket with token');
+    if (!token) {
+      throw new Error('No token provided');
     }
-  });
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    socket.userId = decoded.userId;
+    
+    // Store the socket in connectedClients map
+    connectedClients.set(decoded.userId, socket);
+    
+    console.log(`Socket ${socket.id} authenticated for user ${decoded.userId}`);
+    
+    // Join user's personal room
+    socket.join(`user_${decoded.userId}`);
+    
+    // Join all group rooms for this user
+    const userGroups = await Group.find({ members: decoded.userId });
+    userGroups.forEach(group => {
+      socket.join(`group_${group._id}`);
+      console.log(`User ${decoded.userId} joined group room: group_${group._id}`);
+    });
+    
+    socket.emit('authenticated', { success: true });
+  } catch (error) {
+    console.error('Socket authentication error:', error.message);
+    socket.emit('authenticated', { success: false, error: error.message });
+  }
+});
+
 
   // Handle private chat joining
   
@@ -168,57 +176,160 @@ socket.on('private-message', async (messageData) => {
     }
   }
 });
-// Handle group messages
-socket.on('group-message', async (data, callback) => {
+
+
+// Group message handler
+// Replace the group-message handler with this:
+
+socket.on('group-message', async (data) => {
   try {
-    const { groupId, content } = data;
+    console.log('Group message received:', data);
     
-    // Verify membership
-    const isMember = await Group.exists({
-      _id: groupId,
-      members: socket.userId
-    });
-
-    if (!isMember) {
-      throw new Error('Not a group member');
+    // Before emitting message
+    const rooms = io.sockets.adapter.rooms.get(`group_${data.groupId}`);
+    console.log(`Number of clients in room group_${data.groupId}:`, 
+      rooms ? rooms.size : 0);
+    
+    // Log all connected sockets
+    const connectedSockets = [];
+    for (const [id, socket] of io.sockets.sockets) {
+      connectedSockets.push({
+        id,
+        userId: socket.userId,
+        rooms: Array.from(socket.rooms)
+      });
     }
-
+    console.log('Connected sockets:', connectedSockets);
+    
+    const { groupId, content, tempId, token } = data;
+    
+    // Verify user authentication - use token from message if socket.userId not set
+    if (!socket.userId && token) {
+      try {
+        console.log('Attempting to authenticate with token from message');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+        socket.userId = decoded.userId;
+        console.log(`Socket authenticated from message: ${socket.userId}`);
+      } catch (authError) {
+        console.error('Failed to authenticate from message token:', authError);
+        socket.emit('message-error', { 
+          error: 'Invalid authentication token',
+          tempId 
+        });
+        return;
+      }
+    }
+    
+    // Verify user is authenticated
+    if (!socket.userId) {
+      console.error('Socket not authenticated for group message');
+      socket.emit('message-error', { 
+        error: 'Authentication required',
+        tempId 
+      });
+      return;
+    }
+    
+    console.log(`Processing group message from user ${socket.userId} to group ${groupId}`);
+    
+    // Verify group exists
+    const group = await Group.findById(groupId);
+    if (!group) {
+      console.error(`Group not found: ${groupId}`);
+      socket.emit('message-error', { 
+        error: 'Group not found',
+        tempId 
+      });
+      return;
+    }
+    
+    // Debug: Log members for troubleshooting
+    console.log('Group members:', group.members.map(id => id.toString()));
+    console.log('Current user:', socket.userId);
+    
+    // Check if user is member
+    const isMember = group.members.some(m => 
+      m.toString() === socket.userId.toString()
+    );
+    
+    if (!isMember) {
+      console.error(`User ${socket.userId} is not a member of group ${groupId}`);
+      socket.emit('message-error', { 
+        error: 'Not a member of this group',
+        tempId 
+      });
+      return;
+    }
+    
     // Create and save message
-    const message = new Message({
+    const newMessage = new Message({
       sender: socket.userId,
       group: groupId,
       content,
       type: 'group',
       timestamp: new Date()
     });
-
-    const savedMessage = await message.save();
+    
+    const savedMessage = await newMessage.save();
     
     // Update group's last message
     await Group.findByIdAndUpdate(groupId, {
       lastMessage: savedMessage._id
     });
+    
+    // Populate the message with user details
+    const populatedMessage = await Message.findById(savedMessage._id)
+      .populate('sender', 'username profileImage')
+      .populate('group', 'name');
+    
+      console.log(`Broadcasting group message to ${rooms?.size || 0} clients in room group_${data.groupId}`);
 
-    // Populate the message
-    const populated = await Message.populate(savedMessage, [
-      { path: 'sender', select: 'username profileImage' },
-      { path: 'group', select: 'name members' }
-    ]);
-
-    // Emit to all group members
+    // Broadcast to all group members
+    // console.log(`Broadcasting message to group_${groupId}`);
     io.to(`group_${groupId}`).emit('group-message', {
-      message: populated.toObject()
+      message: populatedMessage
     });
-
-    // Only call callback if it exists
-    if (typeof callback === 'function') {
-      callback({ status: 'success', message: populated });
-    }
+    
+    // Send confirmation to sender
+    socket.emit('group-message-sent', {
+      tempId,
+      message: populatedMessage
+    });
+    
   } catch (error) {
-    console.error('Group message error:', error);
-    if (typeof callback === 'function') {
-      callback({ status: 'error', error: error.message });
+    console.error('Error handling group message:', error);
+    socket.emit('message-error', {
+      error: error.message || 'Server error',
+      tempId: data.tempId
+    });
+  }
+});
+
+// Handle explicit group joining
+socket.on('join-group', async (groupId) => {
+  try {
+    if (!socket.userId) {
+      socket.emit('error', { message: 'Authentication required' });
+      return;
     }
+    
+    // Verify user is a member of this group
+    const group = await Group.findOne({
+      _id: groupId,
+      members: socket.userId
+    });
+    
+    if (!group) {
+      socket.emit('error', { message: 'Not a member of this group' });
+      return;
+    }
+    
+    console.log(`User ${socket.userId} joining group room: group_${groupId}`);
+    socket.join(`group_${groupId}`);
+    socket.emit('joined-group', { groupId });
+  } catch (error) {
+    console.error('Error joining group room:', error);
+    socket.emit('error', { message: error.message });
   }
 });
 
@@ -237,43 +348,43 @@ socket.on('group-message', async (data, callback) => {
 // });
 
 
-// Handle private-message event when it contains a group message
-socket.on('private-message', async (messageData) => {
-  // Check if this is actually a group message
-  if (messageData.type === 'group' && messageData.group) {
-    try {
-      console.log('Received group message via private-message event:', messageData);
+// // Handle private-message event when it contains a group message
+// socket.on('privatemessage', async (messageData) => {
+//   // Check if this is actually a group message
+//   if (messageData.type === 'group' && messageData.group) {
+//     try {
+//       console.log('Received group message via private-message event:', messageData);
       
-      // Create and save message
-      const message = new Message({
-        sender: messageData.sender._id,
-        group: messageData.group._id,
-        content: messageData.content,
-        timestamp: new Date(),
-        type: 'group'
-      });
+//       // Create and save message
+//       const message = new Message({
+//         sender: messageData.sender._id,
+//         group: messageData.group._id,
+//         content: messageData.content,
+//         timestamp: new Date(),
+//         type: 'group'
+//       });
 
-      const savedMessage = await message.save();
+//       const savedMessage = await message.save();
       
-      // Update group's last message
-      await Group.findByIdAndUpdate(messageData.group._id, {
-        lastMessage: savedMessage._id
-      });
+//       // Update group's last message
+//       await Group.findByIdAndUpdate(messageData.group._id, {
+//         lastMessage: savedMessage._id
+//       });
 
-      // Populate the message
-      const populatedMessage = await Message.populate(savedMessage, [
-        { path: 'sender', select: 'username profileImage' },
-        { path: 'group', select: 'name' }
-      ]);
+//       // Populate the message
+//       const populatedMessage = await Message.populate(savedMessage, [
+//         { path: 'sender', select: 'username profileImage' },
+//         { path: 'group', select: 'name' }
+//       ]);
 
-      // Broadcast to all clients using the same 'refetch' event
-      io.emit('refetch', { messageData: populatedMessage });
+//       // Broadcast to all clients using the same 'refetch' event
+//       io.emit('refetch', { messageData: populatedMessage });
       
-    } catch (error) {
-      console.error('Error handling group message via private-message event:', error);
-    }
-  }
-});
+//     } catch (error) {
+//       console.error('Error handling group message via private-message event:', error);
+//     }
+//   }
+// });
 
 
 socket.on('get-group-conversations', async () => {

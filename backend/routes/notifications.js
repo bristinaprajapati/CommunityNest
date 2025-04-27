@@ -64,4 +64,32 @@ router.patch('/:id/read', authenticate, async (req, res) => {
     }
   });
 
+  router.delete('/:id', authenticate, async (req, res) => {
+    try {
+      const notification = await Notification.findOneAndDelete({
+        _id: req.params.id,
+        recipient: req.userId
+      });
+  
+      if (!notification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Notification not found or unauthorized'
+        });
+      }
+  
+      res.json({
+        success: true,
+        message: 'Notification deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete notification',
+        error: error.message
+      });
+    }
+  });
+
 module.exports = router;

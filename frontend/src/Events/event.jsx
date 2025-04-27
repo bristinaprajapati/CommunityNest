@@ -212,15 +212,14 @@ const Events = () => {
     }
   };
 
-  // Function to toggle event status
   const toggleEventStatus = async (eventId, currentStatus) => {
     const newStatus = currentStatus === "Private" ? "Announcement" : "Private";
-  
+    
     try {
       const token = localStorage.getItem("token");
       const response = await axios.put(
         `http://localhost:5001/api/events/${eventId}/status`,
-        {}, // No body needed since we're using a dedicated endpoint
+        {},
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -228,8 +227,8 @@ const Events = () => {
   
       if (response.data.success) {
         // Update the local state without refetching all events
-        setEvents(
-          events.map((event) =>
+        setEvents(prevEvents => 
+          prevEvents.map(event =>
             event._id === eventId ? { ...event, status: newStatus } : event
           )
         );
@@ -237,13 +236,25 @@ const Events = () => {
         if (newStatus === "Announcement") {
           alert("Event published as announcement! All members will be notified.");
         }
+      } else {
+        alert(response.data.message || "Failed to update event status");
       }
     } catch (error) {
       console.error("Error updating event status:", error);
-      alert("Failed to update event status. Please try again.");
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Failed to update event status. Please try again.";
+      alert(errorMessage);
+      
+      // Revert UI state if the request failed
+      setEvents(prevEvents => 
+        prevEvents.map(event =>
+          event._id === eventId ? { ...event, status: currentStatus } : event
+        )
+      );
     }
   };
-
+  
   return (
     <div className="events-page">
       <Sidebar />

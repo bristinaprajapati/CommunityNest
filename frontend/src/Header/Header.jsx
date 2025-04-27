@@ -1,4 +1,3 @@
-// Updated header.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -15,6 +14,7 @@ import { useNotifications } from "../contexts/NotificationContext.js";
 import logo from "../logo.png";
 import "./Header.css";
 import axios from "axios";
+import EventPopup from "../components/EventPopup.jsx";
 
 
 const Header = () => {
@@ -27,16 +27,17 @@ const Header = () => {
   const dropdownRef = useRef(null);
   const notificationRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [showEventPopup, setShowEventPopup] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState(null);
 
   const {
     notifications,
     unreadCount,
     markAsRead,
     fetchNotifications,
+    deleteNotification,
     isConnected,
   } = useNotifications();
-
- 
 
   const [user, setUser] = useState({
     username: localStorage.getItem("username") || "Guest",
@@ -45,46 +46,47 @@ const Header = () => {
   });
 
   useEffect(() => {
-   // In the fetchUserData function in Header.jsx
-   const fetchUserData = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-  
-      const response = await axios.get(
-        "http://localhost:5001/api/auth/user",
-        {
-          headers: { Authorization: `Bearer ${token}` },
+    // In the fetchUserData function in Header.jsx
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await axios.get(
+          "http://localhost:5001/api/auth/user",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (response.data) {
+          const { username, email, profileImage } = response.data;
+          setUser({
+            username: username || localStorage.getItem("username") || "Guest",
+            email: email || localStorage.getItem("email") || "Not Available",
+            profileImage:
+              profileImage || localStorage.getItem("profileImage") || null,
+          });
+
+          // Update localStorage
+          if (username) localStorage.setItem("username", username);
+          if (email) localStorage.setItem("email", email);
+          if (profileImage) localStorage.setItem("profileImage", profileImage);
         }
-      );
-  
-      if (response.data) {
-        const { username, email, profileImage } = response.data;
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        // Handle 401 by clearing invalid token
+        if (error.response?.status === 401) {
+          localStorage.removeItem("token");
+        }
+        // Fallback to localStorage
         setUser({
-          username: username || localStorage.getItem("username") || "Guest",
-          email: email || localStorage.getItem("email") || "Not Available",
-          profileImage: profileImage || localStorage.getItem("profileImage") || null,
+          username: localStorage.getItem("username") || "Guest",
+          email: localStorage.getItem("email") || "Not Available",
+          profileImage: localStorage.getItem("profileImage") || null,
         });
-        
-        // Update localStorage
-        if (username) localStorage.setItem("username", username);
-        if (email) localStorage.setItem("email", email);
-        if (profileImage) localStorage.setItem("profileImage", profileImage);
       }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      // Handle 401 by clearing invalid token
-      if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-      }
-      // Fallback to localStorage
-      setUser({
-        username: localStorage.getItem("username") || "Guest",
-        email: localStorage.getItem("email") || "Not Available",
-        profileImage: localStorage.getItem("profileImage") || null,
-      });
-    }
-  };
+    };
 
     fetchUserData();
   }, []);
@@ -231,6 +233,30 @@ const Header = () => {
     }
   }, [unreadCount, showNotifications, fetchNotifications]);
 
+  const handleNotificationClick = (notification) => {
+    markAsRead(notification._id);
+
+    if (notification.type === "event") {
+      console.log("Full notification:", notification); // Debug log
+
+      if (notification.isCommunityMember) {
+        navigate(`/event/${notification.relatedEntity}`);
+      } else {
+        // Safely extract ALL event data with verification
+        const eventData = notification.eventData || {};
+        setCurrentEvent({
+          title: eventData.title || "New Event",
+          date: eventData.date || "Date not specified",
+          time: eventData.time || "Time not specified",
+          image: eventData.image || "",
+          organizer: eventData.organizer || "Organizer",
+        });
+        console.log("Setting currentEvent:", currentEvent); // Debug log
+        setShowEventPopup(true);
+      }
+    }
+  };
+
   return (
     <header className="App-header">
       <div className="Header-left">
@@ -248,8 +274,8 @@ const Header = () => {
           <span className="Message-badge">3</span>
         </div>
 
-         {/* Message Icon */}
-         {/* <div
+        {/* Message Icon */}
+        {/* <div
           className="Messages-icon-wrapper"
           onClick={() => navigate("/messenger")}
           style={{ cursor: "pointer" }}
@@ -292,28 +318,84 @@ const Header = () => {
               </div>
               <div className="Notification-list">
                 {notifications.length > 0 ? (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification._id}
-                      className={`Notification-item ${
-                        !notification.read ? "unread" : ""
-                      }`}
-                      onClick={() => {
-                        markAsRead(notification._id);
-                      }}
-                    >
-                      <p className="Notification-message">
-                        {notification.message}
-                      </p>
-                      <div className="Notification-meta">
-                        <span className="Notification-time">
-                          {new Date(notification.createdAt).toLocaleString()}
-                        </span>
+                  notifications.map((notification) => {
+                    // Safely extract event data with defaults
+                    const eventData = notification.eventData || {};
+                    const safeEventData = {
+                      title: eventData.title || "Event",
+                      date: eventData.date || "Not specified",
+                      time: eventData.time || "Not specified",
+                      image: eventData.image || "",
+                      organizer: eventData.organizer || "Unknown organizer",
+                    };
+
+                    return (
+                      <div
+                        key={notification._id}
+                        className={`Notification-item ${
+                          !notification.read ? "unread" : ""
+                        }`}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="Notification-content">
+                          {notification.sender?.profileImage ? (
+                            <img
+                              src={notification.sender.profileImage}
+                              alt={notification.sender.username}
+                              className="Notification-avatar"
+                            />
+                          ) : (
+                            <div className="Notification-avatar-default">
+                              <FontAwesomeIcon icon={faUserCircle} />
+                            </div>
+                          )}
+                          <div className="Notification-details">
+                            <p className="Notification-message">
+                              {notification.message}
+                              {/* {notification.type === "event" &&
+                                !notification.isCommunityMember && (
+                                  <span className="external-badge">
+                                    External Event
+                                  </span>
+                                )} */}
+                            </p>
+                            <div className="Notification-meta">
+                              <span className="Notification-time">
+                                {new Date(
+                                  notification.createdAt
+                                ).toLocaleString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              {notification.type && (
+                                <span
+                                  className={`Notification-type ${notification.type}`}
+                                >
+                                  {notification.type}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+            className="Notification-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteNotification(notification._id);
+            }}
+          >
+            ×
+          </button>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
-                  <p className="Notification-empty">No notifications</p>
+                  <div className="Notification-empty">
+                    <p>No notifications yet</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -431,6 +513,16 @@ const Header = () => {
           )}
         </div>
       </div>
+
+      {showEventPopup && currentEvent && (
+        <EventPopup
+          event={currentEvent}
+          onClose={() => {
+            setShowEventPopup(false);
+            setCurrentEvent(null);
+          }}
+        />
+      )}
     </header>
   );
 };

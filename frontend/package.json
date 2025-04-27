@@ -11,6 +11,7 @@
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.3",
+    "date-fns": "^4.1.0",
     "html-docx-js": "^0.1.0",
     "html2pdf.js": "^0.10.3",
     "jodit-react": "^5.2.15",

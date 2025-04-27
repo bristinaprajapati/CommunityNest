@@ -38,7 +38,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // Get all groups for current user
-// In your group routes (backend)
+
 router.get('/', authenticate, async (req, res) => {
   try {
     const groups = await Group.find({ members: req.userId })
@@ -47,12 +47,12 @@ router.get('/', authenticate, async (req, res) => {
         path: 'lastMessage',
         populate: { path: 'sender', select: 'username' }
       })
-      .lean(); // Convert to plain JS objects
+      .lean(); 
     
     // Ensure _id is included
     const response = groups.map(group => ({
       ...group,
-      id: group._id // Add id alias if needed
+      id: group._id 
     }));
     
     res.json(response);
@@ -243,17 +243,25 @@ router.post('/:groupId/messages', authenticate, async (req, res) => {
     const { content } = req.body;
     const { groupId } = req.params;
 
-    // Verify membership
+    // Validate groupId
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group ID' });
+    }
+
+    // Verify membership more robustly
     const group = await Group.findOne({
       _id: groupId,
       members: req.userId
     }).lean();
 
     if (!group) {
-      return res.status(403).json({ message: 'Not a member of this group' });
+      return res.status(403).json({ 
+        message: 'Not a member of this group',
+        details: `User ${req.userId} not found in group ${groupId} members`
+      });
     }
 
-    // Create message
+    // Create and save message
     const message = new Message({
       sender: req.userId,
       group: groupId,
@@ -266,13 +274,14 @@ router.post('/:groupId/messages', authenticate, async (req, res) => {
     
     // Update group's last message
     await Group.findByIdAndUpdate(groupId, {
-      lastMessage: savedMessage._id
+      lastMessage: savedMessage._id,
+      updatedAt: new Date()
     });
 
-    // Populate for response
+    // Populate sender details
     const populated = await Message.populate(savedMessage, [
       { path: 'sender', select: 'username profileImage' },
-      { path: 'group', select: 'name' }
+      { path: 'group', select: 'name members' }
     ]);
 
     // Emit socket event
@@ -283,7 +292,10 @@ router.post('/:groupId/messages', authenticate, async (req, res) => {
     res.status(201).json(populated);
   } catch (error) {
     console.error('Error sending group message:', error);
-    res.status(500).json({ message: 'Error sending message' });
+    res.status(500).json({ 
+      message: 'Error sending message',
+      error: error.message
+    });
   }
 });
 

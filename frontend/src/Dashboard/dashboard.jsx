@@ -74,17 +74,20 @@ const Dashboard = () => {
           )
         : await axios.post(
             "http://localhost:5001/api/notice",
-            { content: noticeContent },
+            { 
+              content: noticeContent,
+              createNotification: true // Add this flag
+            },
             { headers: { Authorization: `Bearer ${token}` } }
           );
   
       // Refresh notices and notifications
-      const [noticesRes] = await Promise.all([
-        axios.get("http://localhost:5001/api/notice", {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetchNotifications() 
-      ]);
+      await fetchNotifications();
+      
+      // Refresh notices
+      const noticesRes = await axios.get("http://localhost:5001/api/notice", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       
       setNotices(noticesRes.data.notices);
       setModalIsOpen(false);
@@ -96,6 +99,7 @@ const Dashboard = () => {
       alert(error.response?.data?.message || "Failed to save notice");
     }
   };
+  
 
   const handleDeleteNotice = async (noticeId) => {
     if (window.confirm("Are you sure you want to delete this notice?")) {

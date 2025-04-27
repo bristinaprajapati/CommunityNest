@@ -173,6 +173,21 @@ export const NotificationProvider = ({ children }) => {
       fetchNotifications();
     }
   };
+  const deleteNotification = async (notificationId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `http://localhost:5001/api/notifications/${notificationId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setNotifications(prev => prev.filter(n => n._id !== notificationId));
+      setUnreadCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      fetchNotifications(); // Refresh as fallback
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -205,7 +220,10 @@ export const NotificationProvider = ({ children }) => {
       setIsConnected(false);
     });
 
-    // fetchNotifications();
+    fetchNotifications();
+
+   
+    
 
     return () => {
       // Don't disconnect here - let the socket live for other features
@@ -221,11 +239,13 @@ export const NotificationProvider = ({ children }) => {
       unreadCount, 
       fetchNotifications,
       markAsRead,
+      deleteNotification,
       isConnected
     }}>
       {children}
     </NotificationContext.Provider>
   );
 };
+
 
 export const useNotifications = () => useContext(NotificationContext);
