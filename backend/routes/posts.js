@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const mongoose = require("mongoose");
 const cloudinary = require("cloudinary").v2;
 const Post = require("../models/Post");
 const authenticate = require("./authenticate");
@@ -144,7 +145,7 @@ router.delete("/:id", authenticate, async (req, res) => {
       });
     }
 
-    // Check if the user is the author of the post
+    // Verify the requesting user is the post author
     if (post.author.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -223,6 +224,98 @@ router.get('/:id/comments', authenticate, async (req, res) => {
     } catch (error) {
       console.error("Error adding comment:", error);
       res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+  });
+  
+
+  router.get("/user/:userId", authenticate, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      console.log("Received request for user posts:", userId); // Debug log
+      
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid user ID format",
+        });
+      }
+      
+      const posts = await Post.find({ author: userId })
+        .sort({ createdAt: -1 })
+        .populate("author", "username profileImage");
+  
+      console.log("Found posts:", posts.length); // Debug log
+      
+      res.json({
+        success: true,
+        posts,
+      });
+    } catch (error) {
+      console.error("Detailed error in user posts route:", {
+        message: error.message,
+        stack: error.stack,
+        userId: req.params.userId
+      });
+      
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: error.message // Send the actual error message to client
+      });
+    }
+  });
+
+  router.delete("/:id", authenticate, async (req, res) => {
+    try {
+      // Validate post ID format
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid post ID format",
+        });
+      }
+  
+      const post = await Post.findById(req.params.id);
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: "Post not found",
+        });
+      }
+  
+      // Verify ownership
+      if (post.author.toString() !== req.userId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only delete your own posts",
+        });
+      }
+  
+      // Delete image if exists
+      if (post.image) {
+        try {
+          const publicId = post.image.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(`posts/${publicId}`);
+        } catch (cloudinaryError) {
+          console.error("Cloudinary deletion error:", cloudinaryError);
+          // Continue with post deletion even if image deletion fails
+        }
+      }
+  
+      await Post.findByIdAndDelete(req.params.id);
+  
+      res.json({
+        success: true,
+        message: "Post deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete post",
+        error: error.message
+      });
     }
   });
   

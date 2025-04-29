@@ -6,7 +6,7 @@ import { faSearch, faPaperPlane, faUser, faUsers, faPlus, faTimes } from "@forta
 import "./chat.css"
 import Sidebar from "../Sidebar/sidebar"
 import { io } from "socket.io-client"
-
+import { useUnread } from '../contexts/ChatContext';
 const Chat = () => {
   // State variables
   const [users, setUsers] = useState([])
@@ -169,87 +169,88 @@ const Chat = () => {
 
 
   
-  useEffect(() => {
-    const socket = socketRef.current = io("http://localhost:5001");
-    
-    const onConnect = () => {
-      console.log("Connected to socket server");
-      // Authenticate and join groups on connect
-      const token = localStorage.getItem("token");
-      socket.emit('authenticate', token);
-    };
+ // Replace your socket.io useEffect with this:
+useEffect(() => {
+  const socket = socketRef.current = io("http://localhost:5001");
   
-    // Private message handler (unchanged from your original)
-    const onPrivateMessage = (data) => {
-      const { messageData } = data;
-      if (!messageData) return;
-  
-      if (messageData.type === "private") {
-        const isCorrectRecipient = messageData.recipient && messageData.recipient._id === currentUserId;
-        const isCorrectSender = selectedUser && messageData.sender && selectedUser._id === messageData.sender._id;
+  const onConnect = () => {
+    console.log("Connected to socket server");
+    const token = localStorage.getItem("token");
+    socket.emit('authenticate', token);
+  };
+
+  const onPrivateMessage = (data) => {
+    const { messageData } = data;
+    if (!messageData) return;
+
+    // Only process if it's a private message
+    if (messageData.type === "private") {
+      const isCorrectRecipient = messageData.recipient && messageData.recipient._id === currentUserId;
+      const isCorrectSender = selectedUser && messageData.sender && selectedUser._id === messageData.sender._id;
+      
+      if (isCorrectRecipient) {
+        // Only add message if we're in the correct chat
+        if (isCorrectSender) {
+          setMessages(prev => [...prev, messageData]);
+        }
         
-        if (isCorrectRecipient) {
-          if (isCorrectSender) {
-            console.log("Adding private message to current conversation");
-            setMessages(prev => [...prev, messageData]);
-          }
+        // Update conversation partners
+        setConversationPartners(prev => prev.map(p => 
+          p._id === messageData.sender._id ? {...p, lastMessage: messageData} : p
+        ));
+
+        // Update unread count if not viewing this chat
+        if (!isCorrectSender) {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
+          }));
+
+
+
           
-          setConversationPartners(prev => prev.map(p => 
-            p._id === messageData.sender._id ? {...p, lastMessage: messageData} : p
-          ));
-  
-          if (!isCorrectSender) {
-            console.log("Incrementing unread count for private message");
-            setUnreadCounts(prev => ({
-              ...prev,
-              [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
-            }));
-          }
         }
       }
-    };
-  
- // Group message handler
- const onGroupMessage = (data) => {
-  const { message, groupId } = data;
-  console.log('New group message received:', message);
-  
-  // Check if message belongs to currently selected group
-  if (selectedGroup && selectedGroup._id === groupId) {
-    setMessages(prev => [...prev, message]);
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
-  }
-  
-  // Update groups list with latest message
-  setGroups(prev => prev.map(g => 
-    g._id === groupId ? { ...g, lastMessage: message } : g
-  ));
-  
-  // Update unread count if not viewing this group
-  if (!selectedGroup || selectedGroup._id !== groupId) {
-    setUnreadCounts(prev => ({
-      ...prev,
-      [groupId]: (prev[groupId] || 0) + 1
-    }));
-  }
-};
-  
-    // Event listeners for both types
-    socket.on("connect", onConnect);
-    socket.on("refetch", onPrivateMessage); // For private messages
-    socket.on("group-message", onGroupMessage);
-  
-    return () => {
-      socket.off("connect", onConnect);
-      socket.off("refetch", onPrivateMessage);
-      socket.off("group-message", onGroupMessage);
-      socket.disconnect();
-    };
-  }, [currentUserId, selectedUser, selectedGroup]);
+    }
+  };
 
-  // --- Data Fetching Functions ---
+  const onGroupMessage = (data) => {
+    const { message, groupId } = data;
+    
+    // Only process if we're viewing this group
+    if (selectedGroup && selectedGroup._id === groupId) {
+      setMessages(prev => [...prev, message]);
+    }
+    
+    // Update groups list with latest message
+    setGroups(prev => prev.map(g => 
+      g._id === groupId ? { ...g, lastMessage: message } : g
+    ));
+    
+    // Update unread count if not viewing this group
+    if (!selectedGroup || selectedGroup._id !== groupId) {
+      setUnreadCounts(prev => ({
+        ...prev,
+        [groupId]: (prev[groupId] || 0) + 1
+      }));
+    }
+  };
+
+  // Set up event listeners
+  socket.on("connect", onConnect);
+  socket.on("refetch", onPrivateMessage);
+  socket.on("group-message", onGroupMessage);
+
+  return () => {
+    // Clean up listeners
+    socket.off("connect", onConnect);
+    socket.off("refetch", onPrivateMessage);
+    socket.off("group-message", onGroupMessage);
+    socket.disconnect();
+  };
+}, [currentUserId, selectedUser, selectedGroup]); // Only recreate when these dependencies change
+
+// - Data Fetching Functions ---
 
   // Fetch groups for the current user
   const fetchGroups = async () => {
@@ -315,18 +316,26 @@ const Chat = () => {
   // --- Message Handling Functions ---
 
   // Add this function to mark messages as read
-  const markMessagesAsRead = async (conversationId, type) => {
-    try {
-      const token = localStorage.getItem("token")
-      await axios.post(
-        `http://localhost:5001/api/chat/mark-as-read`,
-        { conversationId, type },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-    } catch (err) {
-      console.error("Error marking messages as read:", err)
-    }
+ // In your chat component where you mark messages as read
+const markMessagesAsRead = async (conversationId, type) => {
+  try {
+    const token = localStorage.getItem("token");
+    await axios.post(
+      `http://localhost:5001/api/chat/mark-as-read`,
+      { conversationId, type },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    // Emit socket event to update counts
+    socketRef.current.emit('messages-read', { 
+      userId: currentUserId,
+      conversationId,
+      type 
+    });
+  } catch (err) {
+    console.error("Error marking messages as read:", err);
   }
+};
 
   const handleSendMessage = async (e) => {
     e.preventDefault()
@@ -344,6 +353,7 @@ const Chat = () => {
       content: newMessage,
       timestamp: new Date().toISOString(),
       type: "private",
+      
     }
 
     setMessages((prev) => [...prev, optimisticMessage])
@@ -500,39 +510,39 @@ const Chat = () => {
 
   const handleSelectGroup = async (group) => {
     try {
-      // Clear previous selections
-      setSelectedUser(null)
-      setSelectedGroup(group)
-      setMessages([])
-      setError("")
-
+      setSelectedUser(null);
+      setSelectedGroup(group);
+      setMessages([]);
+      setError("");
+  
       // Clear unread count
-      setUnreadCounts((prev) => {
-        const newCounts = { ...prev }
-        delete newCounts[group._id]
-        return newCounts
-      })
-
-      const token = localStorage.getItem("token")
-      if (!token) throw new Error("No authentication token found")
-
+      setUnreadCounts(prev => {
+        const newCounts = { ...prev };
+        delete newCounts[group._id];
+        return newCounts;
+      });
+  
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+  
       // Mark messages as read
       await axios.post(
-        "http://localhost:5001/api/chat/mark-as-read",
-        { conversationId: group._id, type: "group" },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-
+        `http://localhost:5001/api/group/${group._id}/mark-read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
       // Fetch messages
-      const response = await axios.get(`http://localhost:5001/api/group/${group._id}/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setMessages(response.data)
+      const response = await axios.get(
+        `http://localhost:5001/api/group/${group._id}/messages`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMessages(response.data);
     } catch (err) {
-      console.error("Error selecting group:", err)
-      setError("Failed to open group chat")
+      console.error("Error selecting group:", err);
+      setError("Failed to open group chat");
     }
-  }
+  };
 
   // --- Group Management Functions ---
 

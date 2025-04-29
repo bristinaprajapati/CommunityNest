@@ -147,25 +147,6 @@ socket.on('private-message', async (messageData) => {
     // ]);
 
     io.emit('refetch',{messageData})
-    // // Send to recipient
-    // io.to(`user_${messageData.sender}`).emit('private-message', {
-    //   message: populatedMessage,
-    //   isOwnMessage: true
-    // });
-
-    // // Send confirmation to sender
-    // callback({ 
-    //   status: 'success',
-    //   message: {
-    //     ...populatedMessage.toObject(),
-    //     status: 'delivered'
-    //   }
-    // });
-
-    // io.to(`user_${messageData.recipient}`).emit('private-message', {
-    //   message: populatedMessage,
-    //   isOwnMessage: false
-    // });
     
 
   } catch (error) {
@@ -271,60 +252,6 @@ socket.on('join-group', async (groupId) => {
     socket.emit('error', { message: error.message });
   }
 });
-
-
-// socket.on('refetch', (data) => {
-//   if (data.type === 'group') {
-//     // Handle group message updates
-//     io.to(`group_${groupId}`).emit('group-message', { message: populated });
-//   } else {
-//     // Handle private messages
-//     const recipientSocket = connectedClients.get(data.messageData.recipient._id);
-//     if (recipientSocket) {
-//       recipientSocket.emit('refetch', data);
-//     }
-//   }
-// });
-
-
-// // Handle private-message event when it contains a group message
-// socket.on('privatemessage', async (messageData) => {
-//   // Check if this is actually a group message
-//   if (messageData.type === 'group' && messageData.group) {
-//     try {
-//       console.log('Received group message via private-message event:', messageData);
-      
-//       // Create and save message
-//       const message = new Message({
-//         sender: messageData.sender._id,
-//         group: messageData.group._id,
-//         content: messageData.content,
-//         timestamp: new Date(),
-//         type: 'group'
-//       });
-
-//       const savedMessage = await message.save();
-      
-//       // Update group's last message
-//       await Group.findByIdAndUpdate(messageData.group._id, {
-//         lastMessage: savedMessage._id
-//       });
-
-//       // Populate the message
-//       const populatedMessage = await Message.populate(savedMessage, [
-//         { path: 'sender', select: 'username profileImage' },
-//         { path: 'group', select: 'name' }
-//       ]);
-
-//       // Broadcast to all clients using the same 'refetch' event
-//       io.emit('refetch', { messageData: populatedMessage });
-      
-//     } catch (error) {
-//       console.error('Error handling group message via private-message event:', error);
-//     }
-//   }
-// });
-
 
 socket.on('get-group-conversations', async () => {
   if (!socket.userId) return;
@@ -612,7 +539,7 @@ app.use(express.urlencoded({ extended: true }));
 const corsOptions = {
   origin: "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], 
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization",  "cache-control", ],
   credentials: true,
 };
 app.use(cors(corsOptions));

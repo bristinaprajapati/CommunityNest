@@ -45,24 +45,6 @@
   color: #ffcc00;
 }
 
-/* Message Icon */
-.Message-icon-wrapper {
-  position: relative;
-  cursor: pointer;
-}
-
-.Message-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background: #007bff;
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 3px 7px;
-  border-radius: 50%;
-}
-
 /* Notification Icon */
 .Notification-container {
   position: relative;
@@ -292,12 +274,7 @@
 }
 
 
-.Message-icon-wrapper {
-  display: flex;
-  align-items: center;
-  text-decoration: none; /* Removes underline from link */
-  color: inherit; /* Keeps the icon color consistent */
-}
+
 
 
 .Messages-icon-wrapper {
@@ -578,4 +555,29 @@
 
 .Notification-delete:hover {
   color: #ff4444;
+}
+/* In your Header.css */
+.Message-icon-wrapper {
+  position: relative;
+  cursor: pointer;
+  margin-right: 0px;
+}
+
+.unread-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff3b30;
+  color: white;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 0 4px;
+  border: 1px solid #fff;
+  z-index: 1000;
 }

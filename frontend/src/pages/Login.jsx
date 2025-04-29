@@ -44,7 +44,7 @@ const Login = () => {
 
       // Store token and user data in localStorage
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('userId', response.data.userId);
+      localStorage.setItem('userId', response.data.userId); 
       localStorage.setItem('username', response.data.username);
       localStorage.setItem('email', response.data.email);
       localStorage.setItem("status", response.data.status);

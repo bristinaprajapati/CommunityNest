@@ -5,7 +5,7 @@ const authenticate = require('./authenticate');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const mongoose = require('mongoose');
-
+const Group = require('../models/Group');
 // Get messages between current user and another user
 router.get('/messages/:userId', authenticate, async (req, res) => {
   try {
@@ -266,10 +266,75 @@ router.get('/users-for-group', authenticate, async (req, res) => {
     }
   });
 
+router.get('/unread-counts', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Get unread private messages
+    const privateMessages = await Message.aggregate([
+      {
+        $match: {
+          recipient: mongoose.Types.ObjectId(userId),
+          read: false,
+          type: 'private'
+        }
+      },
+      {
+        $group: {
+          _id: '$sender',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
 
+    // Get unread group messages
+    const userGroups = await Group.find({ members: userId }).select('_id');
+    const groupIds = userGroups.map(group => group._id);
+    
+    const groupMessages = await Message.aggregate([
+      {
+        $match: {
+          group: { $in: groupIds },
+          sender: { $ne: mongoose.Types.ObjectId(userId) },
+          type: 'group',
+          $or: [
+            { read: { $exists: false } },
+            { read: { $nin: [mongoose.Types.ObjectId(userId)] } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: '$group',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
 
+    // Combine counts
+    const unreadCounts = {};
+    privateMessages.forEach(item => {
+      unreadCounts[item._id.toString()] = item.count;
+    });
+    groupMessages.forEach(item => {
+      unreadCounts[item._id.toString()] = item.count;
+    });
 
-  
+    const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
+    // Emit socket event to update all connected clients
+    if (req.app.get('io')) {
+      req.app.get('io').to(`user_${userId}`).emit('unread-count-update', {
+        unreadCounts,
+        totalUnread
+      });
+    }
+
+    res.json({ unreadCounts, totalUnread });
+  } catch (error) {
+    console.error('Error fetching unread counts:', error);
+    res.status(500).json({ error: 'Failed to fetch unread counts' });
+  }
+});
 module.exports = router;
 

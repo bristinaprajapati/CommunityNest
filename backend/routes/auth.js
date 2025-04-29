@@ -462,4 +462,58 @@ router.get("/user/:id", authenticate, async (req, res) => {
   }
 });
 
+
+
+
+
+router.get('/unread-count', authenticate, async (req, res) => {
+    try {
+      console.log('Fetching unread count for user:', req.userId);
+      
+      // Count unread private messages
+      const privateCount = await Message.countDocuments({
+        recipient: req.userId,
+        read: false,
+        type: 'private'
+      });
+  
+      // Get all groups the user belongs to
+      const userGroups = await Group.find({ members: req.userId }).select('_id');
+      const groupIds = userGroups.map(g => g._id);
+  
+      // Count unread group messages
+      const groupCount = await Message.countDocuments({
+        group: { $in: groupIds },
+        readBy: { $ne: req.userId },
+        type: 'group',
+        sender: { $ne: req.userId }
+      });
+  
+      const totalCount = privateCount + groupCount;
+  
+      console.log('Unread counts:', {
+        private: privateCount,
+        group: groupCount,
+        total: totalCount
+      });
+  
+      res.json({ 
+        success: true,
+        count: totalCount,
+        privateCount,
+        groupCount 
+      });
+    } catch (error) {
+      console.error('Detailed error in /unread-count:', {
+        message: error.message,
+        stack: error.stack,
+        userId: req.userId
+      });
+      res.status(500).json({ 
+        success: false,
+        message: 'Error fetching unread count',
+        error: error.message 
+      });
+    }
+  });
 module.exports = router;

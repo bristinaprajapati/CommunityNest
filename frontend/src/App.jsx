@@ -36,7 +36,7 @@ import { NotificationProvider } from './contexts/NotificationContext'; // Update
 import { AuthProvider } from './AuthContext';
 import Chat from './Chat/chat';
 import Feed from './feed/feed'; 
-
+import { ChatProvider} from './contexts/ChatContext';
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState("Departments");
@@ -54,6 +54,7 @@ function App() {
   return (
     <AuthProvider>
     <NotificationProvider> {/* Wrap entire app with NotificationProvider */}
+    <ChatProvider>
       <div className="App">
         {!hideHeaderRoutes.includes(location.pathname) && <Header />}
         <Routes>
@@ -111,6 +112,7 @@ function App() {
           <Route path="/meetings" element={<Meetings />} />
         </Routes>
       </div>
+      </ChatProvider>
     </NotificationProvider>
     </AuthProvider>
   );

@@ -234,9 +234,6 @@ router.get('/:groupId/messages', authenticate, async (req, res) => {
   }
 });
 
-
-
-// Add message to group
 router.post('/:groupId/messages', authenticate, async (req, res) => {
   try {
     const { content } = req.body;
@@ -280,5 +277,38 @@ router.post('/:groupId/messages', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error adding message' });
   }
 });
+// Mark group messages as read
+router.post('/:groupId/mark-read', authenticate, async (req, res) => {
+  try {
+    await Message.updateMany(
+      {
+        group: req.params.groupId,
+        sender: { $ne: req.userId },
+        readBy: { $ne: req.userId }
+      },
+      { $addToSet: { readBy: req.userId } }
+    );
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error marking group messages as read:', error);
+    res.status(500).json({ message: 'Error marking messages as read' });
+  }
+});
 
+// Get unread count for a group
+router.get('/:groupId/unread-count', authenticate, async (req, res) => {
+  try {
+    const count = await Message.countDocuments({
+      group: req.params.groupId,
+      sender: { $ne: req.userId },
+      readBy: { $ne: req.userId }
+    });
+    
+    res.json({ count });
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    res.status(500).json({ message: 'Error getting unread count' });
+  }
+});
 module.exports = router;

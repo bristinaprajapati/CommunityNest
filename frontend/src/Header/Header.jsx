@@ -15,8 +15,8 @@ import logo from "../logo.png";
 import "./Header.css";
 import axios from "axios";
 import EventPopup from "../components/EventPopup.jsx";
-
-
+import { io } from "socket.io-client";
+import { useChat} from "../contexts/ChatContext";
 const Header = () => {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -30,6 +30,10 @@ const Header = () => {
   const [showEventPopup, setShowEventPopup] = useState(false);
   const [currentEvent, setCurrentEvent] = useState(null);
 
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const socketRef = useRef(null);
+  const { totalUnread } = useChat();
+ 
   const {
     notifications,
     unreadCount,
@@ -44,6 +48,32 @@ const Header = () => {
     email: localStorage.getItem("email") || "Not Available",
     profileImage: localStorage.getItem("profileImage") || null,
   });
+
+
+  useEffect(() => {
+    // Initialize socket connection
+    const socket = socketRef.current = io("http://localhost:5001", {
+      withCredentials: true
+    });
+
+    socket.on('connect', () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        socket.emit('authenticate', token);
+      }
+    });
+
+    socket.on('unread-count-update', () => {
+      // This will trigger a re-render with updated counts
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
+
 
   useEffect(() => {
     // In the fetchUserData function in Header.jsx
@@ -69,6 +99,7 @@ const Header = () => {
           });
 
           // Update localStorage
+         
           if (username) localStorage.setItem("username", username);
           if (email) localStorage.setItem("email", email);
           if (profileImage) localStorage.setItem("profileImage", profileImage);
@@ -266,13 +297,16 @@ const Header = () => {
       <div className="Header-right">
         {/* Message Icon */}
         <div
-          className="Message-icon-wrapper"
-          onClick={() => navigate("/chat")}
-          style={{ cursor: "pointer" }}
-        >
-          <FontAwesomeIcon icon={faComment} className="Icon" />
-          <span className="Message-badge">3</span>
-        </div>
+        className="Message-icon-wrapper"
+        onClick={() => navigate("/chat")}
+        style={{ cursor: "pointer" }}
+      >
+        <FontAwesomeIcon icon={faComment} className="Icon" />
+        {totalUnread > 0 && (
+          <span className="Message-badge">{totalUnread}</span>
+        )}
+      </div>
+
 
         {/* Message Icon */}
         {/* <div
@@ -380,15 +414,15 @@ const Header = () => {
                             </div>
                           </div>
                         </div>
-                        <button 
-            className="Notification-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteNotification(notification._id);
-            }}
-          >
-            ×
-          </button>
+                        <button
+                          className="Notification-delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification._id);
+                          }}
+                        >
+                          ×
+                        </button>
                       </div>
                     );
                   })

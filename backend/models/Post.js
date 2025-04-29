@@ -1,9 +1,24 @@
 const mongoose = require("mongoose");
 
 const postSchema = new mongoose.Schema({
-  content: { type: String, trim: true },
-  image: { type: String },
-  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  content: { 
+    type: String, 
+    trim: true,
+    required: function() {
+      return !this.image; // Content is required if no image
+    }
+  },
+  image: { 
+    type: String,
+    required: function() {
+      return !this.content; // Image is required if no content
+    }
+  },
+  author: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User", 
+    required: true 
+  },
   likes: { type: Number, default: 0 },
   likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   createdAt: { type: Date, default: Date.now },
