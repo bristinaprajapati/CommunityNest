@@ -93,6 +93,33 @@ router.post('/messages', authenticate, async (req, res) => {
       { path: 'group', select: 'name' }
     ]);
 
+    // EMIT SOCKET EVENT HERE
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      
+      if (type === 'private') {
+        // Emit to both sender and recipient
+        io.to(`user_${req.userId}`).to(`user_${recipient}`).emit('new-message', {
+          message: populatedMessage,
+          conversationId: type === 'private' ? recipient : group,
+          type
+        });
+      } else {
+        // Emit to all group members
+        const groupData = await Group.findById(group).populate('members');
+        groupData.members.forEach(member => {
+          io.to(`user_${member._id}`).emit('new-message', {
+            message: populatedMessage,
+            conversationId: group,
+            type
+          });
+        });
+      }
+
+      // Also emit unread count update
+      io.emit('unread-count-update-needed');
+    }
+    
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error('Error saving message:', error);
@@ -265,7 +292,7 @@ router.get('/users-for-group', authenticate, async (req, res) => {
       res.status(500).json({ message: 'Error marking messages as read' });
     }
   });
-
+// Updated /unread-counts route
 router.get('/unread-counts', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
@@ -299,7 +326,7 @@ router.get('/unread-counts', authenticate, async (req, res) => {
           type: 'group',
           $or: [
             { read: { $exists: false } },
-            { read: { $nin: [mongoose.Types.ObjectId(userId)] } }
+            { read: false }
           ]
         }
       },
@@ -332,9 +359,17 @@ router.get('/unread-counts', authenticate, async (req, res) => {
 
     res.json({ unreadCounts, totalUnread });
   } catch (error) {
-    console.error('Error fetching unread counts:', error);
-    res.status(500).json({ error: 'Failed to fetch unread counts' });
+    console.error('Detailed error in /unread-counts:', {
+      message: error.message,
+      stack: error.stack,
+      userId: req.userId
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch unread counts',
+      details: error.message 
+    });
   }
 });
+
 module.exports = router;
 

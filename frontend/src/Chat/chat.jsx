@@ -6,7 +6,8 @@ import { faSearch, faPaperPlane, faUser, faUsers, faPlus, faTimes } from "@forta
 import "./chat.css"
 import Sidebar from "../Sidebar/sidebar"
 import { io } from "socket.io-client"
-import { useUnread } from '../contexts/ChatContext';
+import { useChat } from '../contexts/ChatContext';
+
 const Chat = () => {
   // State variables
   const [users, setUsers] = useState([])
@@ -24,7 +25,7 @@ const Chat = () => {
   const [groups, setGroups] = useState([])
   const [showGroupMembers, setShowGroupMembers] = useState(false)
   const navigate = useNavigate()
-  const [unreadCounts, setUnreadCounts] = useState({})
+ 
   const [onlineUsers, setOnlineUsers] = useState([])
   const [conversationPartners, setConversationPartners] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -39,7 +40,7 @@ const Chat = () => {
   const socketRef = useRef(null)
 
   // --- useEffect Hooks ---
-
+  const { unreadCounts, setUnreadCounts, setTotalUnread } = useChat();
   // Initial data loading
   useEffect(() => {
     const fetchData = async () => {
@@ -170,7 +171,7 @@ const Chat = () => {
 
   
  // Replace your socket.io useEffect with this:
-useEffect(() => {
+ useEffect(() => {
   const socket = socketRef.current = io("http://localhost:5001");
   
   const onConnect = () => {
@@ -182,52 +183,41 @@ useEffect(() => {
   const onPrivateMessage = (data) => {
     const { messageData } = data;
     if (!messageData) return;
-
-    // Only process if it's a private message
+  
     if (messageData.type === "private") {
       const isCorrectRecipient = messageData.recipient && messageData.recipient._id === currentUserId;
       const isCorrectSender = selectedUser && messageData.sender && selectedUser._id === messageData.sender._id;
       
       if (isCorrectRecipient) {
-        // Only add message if we're in the correct chat
         if (isCorrectSender) {
           setMessages(prev => [...prev, messageData]);
         }
         
-        // Update conversation partners
         setConversationPartners(prev => prev.map(p => 
           p._id === messageData.sender._id ? {...p, lastMessage: messageData} : p
         ));
-
-        // Update unread count if not viewing this chat
+  
         if (!isCorrectSender) {
           setUnreadCounts(prev => ({
             ...prev,
             [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
           }));
-
-
-
-          
         }
       }
     }
   };
-
+  
   const onGroupMessage = (data) => {
     const { message, groupId } = data;
     
-    // Only process if we're viewing this group
     if (selectedGroup && selectedGroup._id === groupId) {
       setMessages(prev => [...prev, message]);
     }
     
-    // Update groups list with latest message
     setGroups(prev => prev.map(g => 
       g._id === groupId ? { ...g, lastMessage: message } : g
     ));
     
-    // Update unread count if not viewing this group
     if (!selectedGroup || selectedGroup._id !== groupId) {
       setUnreadCounts(prev => ({
         ...prev,
@@ -235,20 +225,29 @@ useEffect(() => {
       }));
     }
   };
+  // NEW: Add listener for unread count updates from server
+  const onUnreadCountUpdate = (data) => {
+    if (data.totalUnread !== undefined) {
+      setTotalUnread(data.totalUnread);
+    }
+  };
 
   // Set up event listeners
   socket.on("connect", onConnect);
   socket.on("refetch", onPrivateMessage);
   socket.on("group-message", onGroupMessage);
+  socket.on("unread-count-update", onUnreadCountUpdate); // NEW
 
   return () => {
     // Clean up listeners
     socket.off("connect", onConnect);
     socket.off("refetch", onPrivateMessage);
     socket.off("group-message", onGroupMessage);
+    socket.off("unread-count-update", onUnreadCountUpdate); // NEW
     socket.disconnect();
   };
-}, [currentUserId, selectedUser, selectedGroup]); // Only recreate when these dependencies change
+}, [currentUserId, selectedUser, selectedGroup, setTotalUnread]); // Added setTotalUnread to dependencies
+
 
 // - Data Fetching Functions ---
 
@@ -317,7 +316,7 @@ useEffect(() => {
 
   // Add this function to mark messages as read
  // In your chat component where you mark messages as read
-const markMessagesAsRead = async (conversationId, type) => {
+ const markMessagesAsRead = async (conversationId, type) => {
   try {
     const token = localStorage.getItem("token");
     await axios.post(
@@ -326,6 +325,14 @@ const markMessagesAsRead = async (conversationId, type) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
+    // Update local unread counts
+    setUnreadCounts(prev => {
+      const newCounts = {...prev};
+      const count = newCounts[conversationId] || 0;
+      delete newCounts[conversationId];
+      return newCounts;
+    });
+
     // Emit socket event to update counts
     socketRef.current.emit('messages-read', { 
       userId: currentUserId,

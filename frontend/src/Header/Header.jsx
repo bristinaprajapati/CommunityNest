@@ -16,7 +16,8 @@ import "./Header.css";
 import axios from "axios";
 import EventPopup from "../components/EventPopup.jsx";
 import { io } from "socket.io-client";
-import { useChat} from "../contexts/ChatContext";
+import { useChat } from '../contexts/ChatContext';
+
 const Header = () => {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -33,7 +34,7 @@ const Header = () => {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const socketRef = useRef(null);
   const { totalUnread } = useChat();
- 
+
   const {
     notifications,
     unreadCount,
@@ -49,21 +50,24 @@ const Header = () => {
     profileImage: localStorage.getItem("profileImage") || null,
   });
 
+  useEffect(() => {
+    console.log("Total unread messages:", totalUnread);
+  }, [totalUnread]);
 
   useEffect(() => {
     // Initialize socket connection
-    const socket = socketRef.current = io("http://localhost:5001", {
-      withCredentials: true
-    });
+    const socket = (socketRef.current = io("http://localhost:5001", {
+      withCredentials: true,
+    }));
 
-    socket.on('connect', () => {
+    socket.on("connect", () => {
       const token = localStorage.getItem("token");
       if (token) {
-        socket.emit('authenticate', token);
+        socket.emit("authenticate", token);
       }
     });
 
-    socket.on('unread-count-update', () => {
+    socket.on("unread-count-update", () => {
       // This will trigger a re-render with updated counts
     });
 
@@ -73,7 +77,6 @@ const Header = () => {
       }
     };
   }, []);
-
 
   useEffect(() => {
     // In the fetchUserData function in Header.jsx
@@ -99,7 +102,7 @@ const Header = () => {
           });
 
           // Update localStorage
-         
+
           if (username) localStorage.setItem("username", username);
           if (email) localStorage.setItem("email", email);
           if (profileImage) localStorage.setItem("profileImage", profileImage);
@@ -293,32 +296,13 @@ const Header = () => {
       <div className="Header-left">
         <img src={logo} className="App-logo" alt="logo" />
       </div>
-
+      {/* Message Icon */}
       <div className="Header-right">
         {/* Message Icon */}
-        <div
-        className="Message-icon-wrapper"
-        onClick={() => navigate("/chat")}
-        style={{ cursor: "pointer" }}
-      >
-        <FontAwesomeIcon icon={faComment} className="Icon" />
-        {totalUnread > 0 && (
-          <span className="Message-badge">{totalUnread}</span>
-        )}
-      </div>
-
-
-        {/* Message Icon */}
-        {/* <div
-          className="Messages-icon-wrapper"
-          onClick={() => navigate("/messenger")}
-          style={{ cursor: "pointer" }}
-        >
-          <FontAwesomeIcon icon={faComment} className="Icon" />
-          <span className="Messages-badge">10</span>
-        </div>
-
- */}
+        <div className="Message-icon-wrapper" onClick={() => navigate("/chat")}>
+  <FontAwesomeIcon icon={faComment} className="Icon" />
+  {totalUnread > 0 && <span className="Message-badge">{totalUnread}</span>}
+</div>
 
         {/* Notification Icon */}
         <div className="Notification-container" ref={notificationRef}>

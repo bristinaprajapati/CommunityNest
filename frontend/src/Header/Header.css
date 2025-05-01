@@ -68,6 +68,17 @@
   border-radius: 50%;
 }
 
+.Message-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: red;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 7px;
+  border-radius: 50%;
+}
 .Connection-dot {
   position: absolute;
   bottom: 5px;

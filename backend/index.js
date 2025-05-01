@@ -317,148 +317,254 @@ socket.on('get-group-conversations', async () => {
   }
 });
 
+
+// Handle messages-read event (when messages are marked as read)
+socket.on('messages-read', async ({ userId, conversationId, type }) => {
+  try {
+    console.log(`Marking messages as read for ${userId}, ${type} ${conversationId}`);
+    
+    if (type === 'private') {
+      await Message.updateMany(
+        {
+          recipient: userId,
+          sender: conversationId,
+          read: false
+        },
+        { $set: { read: true } }
+      );
+    } else if (type === 'group') {
+      await Message.updateMany(
+        {
+          group: conversationId,
+          sender: { $ne: userId },
+          read: false
+        },
+        { $set: { read: true } }
+      );
+    }
+    
+    // Get updated counts and emit to client
+    const counts = await getUnreadCounts(userId);
+    io.to(`user_${userId}`).emit('unread-count-update', counts);
+    
+  } catch (error) {
+    console.error('Error handling messages-read:', error);
+  }
+});
+
+// Handle request for unread counts
+socket.on('get-unread-counts', async (userId) => {
+  try {
+    const counts = await getUnreadCounts(userId);
+    socket.emit('unread-count-update', counts);
+  } catch (error) {
+    console.error('Error getting unread counts:', error);
+    socket.emit('unread-count-error', { error: error.message });
+  }
+});
+
 socket.on('new-msg',async ({selectedId,currentId}) => {
 io.emit(`${selectedId}`,currentId);
 }
 );
 
-// Add this helper function
-async function getGroupConversations(userId) {
-  return await Group.aggregate([
-    {
-      $match: {
-        members: mongoose.Types.ObjectId(userId)
-      }
-    },
-    {
-      $lookup: {
-        from: "messages",
-        let: { groupId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ["$group", "$$groupId"] },
-                  { $eq: ["$type", "group"] }
-                ]
-              }
-            }
-          },
-          { $sort: { timestamp: -1 } },
-          { $limit: 1 }
-        ],
-        as: "lastMessage"
-      }
-    },
-    {
-      $unwind: {
-        path: "$lastMessage",
-        preserveNullAndEmptyArrays: true
-      }
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "lastMessage.sender",
-        foreignField: "_id",
-        as: "lastMessage.sender"
-      }
-    },
-    {
-      $unwind: {
-        path: "$lastMessage.sender",
-        preserveNullAndEmptyArrays: true
-      }
-    },
-    {
-      $project: {
-        _id: 1,
-        name: 1,
-        description: 1,
-        image: 1,
-        members: 1,
-        unreadCount: 0, // You can implement this later
-        lastMessage: {
-          $cond: {
-            if: { $ifNull: ["$lastMessage", false] },
-            then: {
-              _id: "$lastMessage._id",
-              content: "$lastMessage.content",
-              timestamp: "$lastMessage.timestamp",
-              sender: {
-                _id: "$lastMessage.sender._id",
-                username: "$lastMessage.sender.username",
-                profileImage: "$lastMessage.sender.profileImage"
-              }
-            },
-            else: null
-          }
-        }
-      }
-    },
-    {
-      $sort: { "lastMessage.timestamp": -1 }
-    }
-  ]);
-}
+// // Add this helper function
+// async function getGroupConversations(userId) {
+//   return await Group.aggregate([
+//     {
+//       $match: {
+//         members: mongoose.Types.ObjectId(userId)
+//       }
+//     },
+//     {
+//       $lookup: {
+//         from: "messages",
+//         let: { groupId: "$_id" },
+//         pipeline: [
+//           {
+//             $match: {
+//               $expr: {
+//                 $and: [
+//                   { $eq: ["$group", "$$groupId"] },
+//                   { $eq: ["$type", "group"] }
+//                 ]
+//               }
+//             }
+//           },
+//           { $sort: { timestamp: -1 } },
+//           { $limit: 1 }
+//         ],
+//         as: "lastMessage"
+//       }
+//     },
+//     {
+//       $unwind: {
+//         path: "$lastMessage",
+//         preserveNullAndEmptyArrays: true
+//       }
+//     },
+//     {
+//       $lookup: {
+//         from: "users",
+//         localField: "lastMessage.sender",
+//         foreignField: "_id",
+//         as: "lastMessage.sender"
+//       }
+//     },
+//     {
+//       $unwind: {
+//         path: "$lastMessage.sender",
+//         preserveNullAndEmptyArrays: true
+//       }
+//     },
+//     {
+//       $project: {
+//         _id: 1,
+//         name: 1,
+//         description: 1,
+//         image: 1,
+//         members: 1,
+//         unreadCount: 0, // You can implement this later
+//         lastMessage: {
+//           $cond: {
+//             if: { $ifNull: ["$lastMessage", false] },
+//             then: {
+//               _id: "$lastMessage._id",
+//               content: "$lastMessage.content",
+//               timestamp: "$lastMessage.timestamp",
+//               sender: {
+//                 _id: "$lastMessage.sender._id",
+//                 username: "$lastMessage.sender.username",
+//                 profileImage: "$lastMessage.sender.profileImage"
+//               }
+//             },
+//             else: null
+//           }
+//         }
+//       }
+//     },
+//     {
+//       $sort: { "lastMessage.timestamp": -1 }
+//     }
+//   ]);
+// }
+
+
   
   // Add this helper function (put it outside the connection handler)
-  async function getConversationPartners(userId) {
-    return await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: mongoose.Types.ObjectId(userId) },
-            { recipient: mongoose.Types.ObjectId(userId) }
-          ]
-        }
-      },
-      {
-        $sort: { timestamp: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ["$sender", mongoose.Types.ObjectId(userId)] },
-              "$recipient",
-              "$sender"
-            ]
-          },
-          lastMessage: { $first: "$$ROOT" }
-        }
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user"
-        }
-      },
-      {
-        $unwind: "$user"
-      },
-      {
-        $project: {
-          _id: "$user._id",
-          username: "$user.username",
-          email: "$user.email",
-          profileImage: "$user.profileImage",
-          status: "$user.status",
-          lastMessage: {
-            content: "$lastMessage.content",
-            timestamp: "$lastMessage.timestamp"
+  // async function getConversationPartners(userId) {
+  //   return await Message.aggregate([
+  //     {
+  //       $match: {
+  //         $or: [
+  //           { sender: mongoose.Types.ObjectId(userId) },
+  //           { recipient: mongoose.Types.ObjectId(userId) }
+  //         ]
+  //       }
+  //     },
+  //     {
+  //       $sort: { timestamp: -1 }
+  //     },
+  //     {
+  //       $group: {
+  //         _id: {
+  //           $cond: [
+  //             { $eq: ["$sender", mongoose.Types.ObjectId(userId)] },
+  //             "$recipient",
+  //             "$sender"
+  //           ]
+  //         },
+  //         lastMessage: { $first: "$$ROOT" }
+  //       }
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "_id",
+  //         foreignField: "_id",
+  //         as: "user"
+  //       }
+  //     },
+  //     {
+  //       $unwind: "$user"
+  //     },
+  //     {
+  //       $project: {
+  //         _id: "$user._id",
+  //         username: "$user.username",
+  //         email: "$user.email",
+  //         profileImage: "$user.profileImage",
+  //         status: "$user.status",
+  //         lastMessage: {
+  //           content: "$lastMessage.content",
+  //           timestamp: "$lastMessage.timestamp"
+  //         }
+  //       }
+  //     },
+  //     {
+  //       $sort: { "lastMessage.timestamp": -1 }
+  //     }
+  //   ]);
+  // }
+
+  async function getUnreadCounts(userId) {
+    try {
+      // Get private message counts
+      const privateCounts = await Message.aggregate([
+        {
+          $match: {
+            recipient: mongoose.Types.ObjectId(userId),
+            read: false,
+            type: 'private'
+          }
+        },
+        {
+          $group: {
+            _id: '$sender',
+            count: { $sum: 1 }
           }
         }
-      },
-      {
-        $sort: { "lastMessage.timestamp": -1 }
-      }
-    ]);
+      ]);
+  
+      // Get group message counts
+      const userGroups = await Group.find({ members: userId }).select('_id');
+      const groupIds = userGroups.map(g => g._id);
+      
+      const groupCounts = await Message.aggregate([
+        {
+          $match: {
+            group: { $in: groupIds },
+            sender: { $ne: mongoose.Types.ObjectId(userId) },
+            read: false,
+            type: 'group'
+          }
+        },
+        {
+          $group: {
+            _id: '$group',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+  
+      // Combine counts
+      const unreadCounts = {};
+      privateCounts.forEach(item => {
+        unreadCounts[item._id.toString()] = item.count;
+      });
+      groupCounts.forEach(item => {
+        unreadCounts[item._id.toString()] = item.count;
+      });
+  
+      const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  
+      return { unreadCounts, totalUnread };
+    } catch (error) {
+      console.error('Error in getUnreadCounts:', error);
+      throw error;
+    }
   }
-
+  
   // Handle message history requests
   socket.on('get-messages', async ({ userId1, userId2 }) => {
     try {
