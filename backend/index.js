@@ -28,9 +28,6 @@ const groupRoutes = require('./routes/group');
 const Message = require('./models/Message'); 
 const config = require('./config');
 const postRoutes = require('./routes/posts');
-// const conversationRoutes = require('./routes/conversations');
-// const messageRoutes = require('./routes/messages');
-
 
 
 // Load environment variables
@@ -101,26 +98,6 @@ socket.on('authenticate', async (token) => {
     socket.emit('authenticated', { success: false, error: error.message });
   }
 });
-
-
-  // Handle private chat joining
-  
-
-  // socket.on('join-private-chat', ({ userId1, userId2 }) => {
-  //   const roomId = [userId1, userId2].sort().join('_');
-
-  //   socket.join(`private_${roomId}`);
-    
-  //   console.log(`User ${socket.userId} joined private chat ${roomId}`);
-  // });
-
-  // // Handle group chat joining
-  // socket.on('join-group-chat', (groupId) => {
-  //   socket.join(`group_${groupId}`);
-  //   console.log(`User ${socket.userId} joined group chat ${groupId}`);
-  // });
-
-  
 
 // Handle private messages
 socket.on('private-message', async (messageData) => {
@@ -202,28 +179,35 @@ socket.on('group-message', async (data) => {
       { path: 'group', select: 'name members' }
     ]);
     
-    // Get list of all member sockets
-    const memberSockets = [];
-    group.members.forEach(member => {
-      const memberSocket = connectedClients.get(member._id.toString());
-      if (memberSocket) memberSockets.push(memberSocket);
+    // Get unique user IDs (not socket IDs) 
+    const memberIds = Array.from(new Set(
+      group.members.map(member => member._id.toString())
+    ));
+    
+    console.log(`Broadcasting to ${memberIds.length} group members`);
+    
+    // Broadcast to rooms instead of individual sockets
+    io.to(`group_${groupId}`).emit('group-message', {
+      message: populatedMessage,
+      groupId
     });
     
-    // Broadcast to all group members
-    console.log(`Broadcasting to ${memberSockets.length} group members`);
-    memberSockets.forEach(memberSocket => {
-      memberSocket.emit('group-message', {
-        message: populatedMessage,
-        groupId
+    // Send a confirmation to the sender if there's a tempId
+    if (data.tempId) {
+      socket.emit('group-message-sent', {
+        tempId: data.tempId,
+        message: populatedMessage
       });
-    });
+    }
     
   } catch (error) {
     console.error('Error handling group message:', error);
-    socket.emit('message-error', { error: error.message });
+    socket.emit('message-error', { 
+      error: error.message,
+      tempId: data.tempId
+    });
   }
 });
-
 
 // Handle explicit group joining
 socket.on('join-group', async (groupId) => {
@@ -368,144 +352,6 @@ io.emit(`${selectedId}`,currentId);
 }
 );
 
-// // Add this helper function
-// async function getGroupConversations(userId) {
-//   return await Group.aggregate([
-//     {
-//       $match: {
-//         members: mongoose.Types.ObjectId(userId)
-//       }
-//     },
-//     {
-//       $lookup: {
-//         from: "messages",
-//         let: { groupId: "$_id" },
-//         pipeline: [
-//           {
-//             $match: {
-//               $expr: {
-//                 $and: [
-//                   { $eq: ["$group", "$$groupId"] },
-//                   { $eq: ["$type", "group"] }
-//                 ]
-//               }
-//             }
-//           },
-//           { $sort: { timestamp: -1 } },
-//           { $limit: 1 }
-//         ],
-//         as: "lastMessage"
-//       }
-//     },
-//     {
-//       $unwind: {
-//         path: "$lastMessage",
-//         preserveNullAndEmptyArrays: true
-//       }
-//     },
-//     {
-//       $lookup: {
-//         from: "users",
-//         localField: "lastMessage.sender",
-//         foreignField: "_id",
-//         as: "lastMessage.sender"
-//       }
-//     },
-//     {
-//       $unwind: {
-//         path: "$lastMessage.sender",
-//         preserveNullAndEmptyArrays: true
-//       }
-//     },
-//     {
-//       $project: {
-//         _id: 1,
-//         name: 1,
-//         description: 1,
-//         image: 1,
-//         members: 1,
-//         unreadCount: 0, // You can implement this later
-//         lastMessage: {
-//           $cond: {
-//             if: { $ifNull: ["$lastMessage", false] },
-//             then: {
-//               _id: "$lastMessage._id",
-//               content: "$lastMessage.content",
-//               timestamp: "$lastMessage.timestamp",
-//               sender: {
-//                 _id: "$lastMessage.sender._id",
-//                 username: "$lastMessage.sender.username",
-//                 profileImage: "$lastMessage.sender.profileImage"
-//               }
-//             },
-//             else: null
-//           }
-//         }
-//       }
-//     },
-//     {
-//       $sort: { "lastMessage.timestamp": -1 }
-//     }
-//   ]);
-// }
-
-
-  
-  // Add this helper function (put it outside the connection handler)
-  // async function getConversationPartners(userId) {
-  //   return await Message.aggregate([
-  //     {
-  //       $match: {
-  //         $or: [
-  //           { sender: mongoose.Types.ObjectId(userId) },
-  //           { recipient: mongoose.Types.ObjectId(userId) }
-  //         ]
-  //       }
-  //     },
-  //     {
-  //       $sort: { timestamp: -1 }
-  //     },
-  //     {
-  //       $group: {
-  //         _id: {
-  //           $cond: [
-  //             { $eq: ["$sender", mongoose.Types.ObjectId(userId)] },
-  //             "$recipient",
-  //             "$sender"
-  //           ]
-  //         },
-  //         lastMessage: { $first: "$$ROOT" }
-  //       }
-  //     },
-  //     {
-  //       $lookup: {
-  //         from: "users",
-  //         localField: "_id",
-  //         foreignField: "_id",
-  //         as: "user"
-  //       }
-  //     },
-  //     {
-  //       $unwind: "$user"
-  //     },
-  //     {
-  //       $project: {
-  //         _id: "$user._id",
-  //         username: "$user.username",
-  //         email: "$user.email",
-  //         profileImage: "$user.profileImage",
-  //         status: "$user.status",
-  //         lastMessage: {
-  //           content: "$lastMessage.content",
-  //           timestamp: "$lastMessage.timestamp"
-  //         }
-  //       }
-  //     },
-  //     {
-  //       $sort: { "lastMessage.timestamp": -1 }
-  //     }
-  //   ]);
-  // }
 
   async function getUnreadCounts(userId) {
     try {
@@ -564,7 +410,7 @@ io.emit(`${selectedId}`,currentId);
       throw error;
     }
   }
-  
+
   // Handle message history requests
   socket.on('get-messages', async ({ userId1, userId2 }) => {
     try {
