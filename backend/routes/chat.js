@@ -51,25 +51,17 @@ router.get('/search', authenticate, async (req, res) => {
 // Save a message
 // routes/chat.js
 
-// Save a message (updated route)
 router.post('/messages', authenticate, async (req, res) => {
   try {
-    const { recipient, content, type = 'private', group } = req.body;
+    const { recipient, content, type = 'private', tempId } = req.body;
 
-    // Validate the request
-    if (!content) {
-      return res.status(400).json({ message: 'Message content is required' });
-    }
-
+    // Validate request
+    if (!content) return res.status(400).json({ message: 'Content required' });
     if (type === 'private' && !recipient) {
-      return res.status(400).json({ message: 'Recipient is required for private messages' });
+      return res.status(400).json({ message: 'Recipient required' });
     }
 
-    if (type === 'group' && !group) {
-      return res.status(400).json({ message: 'Group ID is required for group messages' });
-    }
-
-    // Create the message
+    // Create message (but don't save yet)
     const messageData = {
       sender: req.userId,
       content,
@@ -80,47 +72,45 @@ router.post('/messages', authenticate, async (req, res) => {
     if (type === 'private') {
       messageData.recipient = recipient;
     } else {
-      messageData.group = group;
+      messageData.group = recipient; // Using recipient field for group ID
     }
 
     const message = new Message(messageData);
-    await message.save();
+    const savedMessage = await message.save();
     
-    // Populate the message with sender/recipient/group details
-    const populatedMessage = await Message.populate(message, [
+    // Populate and prepare response
+    const populated = await Message.populate(savedMessage, [
       { path: 'sender', select: 'username profileImage' },
       { path: 'recipient', select: 'username profileImage' },
       { path: 'group', select: 'name' }
     ]);
 
-    // EMIT SOCKET EVENT HERE
+    const response = {
+      ...populated.toObject(),
+      tempId
+    };
+
+    // Emit socket event (like group messages do)
     if (req.app.get('io')) {
       const io = req.app.get('io');
       
       if (type === 'private') {
-        // Emit to both sender and recipient
-        io.to(`user_${req.userId}`).to(`user_${recipient}`).emit('new-message', {
-          message: populatedMessage,
-          conversationId: type === 'private' ? recipient : group,
-          type
+        io.to(`user_${recipient}`).emit('private-message', {
+          messageData: response
+        });
+        io.to(`user_${req.userId}`).emit('private-message-sent', {
+          messageData: response
         });
       } else {
-        // Emit to all group members
-        const groupData = await Group.findById(group).populate('members');
-        groupData.members.forEach(member => {
-          io.to(`user_${member._id}`).emit('new-message', {
-            message: populatedMessage,
-            conversationId: group,
-            type
-          });
+        io.to(`group_${recipient}`).emit('group-message', {
+          message: response,
+          groupId: recipient
         });
       }
-
-      // Also emit unread count update
-      io.emit('unread-count-update-needed');
     }
+
+    res.status(201).json(response);
     
-    res.status(201).json(populatedMessage);
   } catch (error) {
     console.error('Error saving message:', error);
     res.status(500).json({ 

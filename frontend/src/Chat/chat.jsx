@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
@@ -36,9 +37,10 @@ const Chat = () => {
   const currentUserId = localStorage.getItem("userId")
   const currentUsername = localStorage.getItem("username")
   const currentUserProfileImage = localStorage.getItem("profileImage")
-
+  const seenMessageIds = useRef(new Set());
   const socketRef = useRef(null)
-
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
   // --- useEffect Hooks ---
   const { unreadCounts, setUnreadCounts, setTotalUnread } = useChat();
   // Initial data loading
@@ -124,32 +126,69 @@ const Chat = () => {
     socket.emit('authenticate', token);
   };
 
+  const onPrivateMessageSent = (data) => {
+    const { messageData } = data;
+    if (!messageData) return;
+    
+    // Update the message in state (in case of any changes)
+    setMessages(prev => prev.map(m => 
+      m.tempId === messageData.tempId ? messageData : m
+    ));
+  };
+
   const onPrivateMessage = (data) => {
     const { messageData } = data;
     if (!messageData) return;
   
     if (messageData.type === "private") {
-      const isCorrectRecipient = messageData.recipient && messageData.recipient._id === currentUserId;
-      const isCorrectSender = selectedUser && messageData.sender && selectedUser._id === messageData.sender._id;
-      
-      if (isCorrectRecipient) {
-        if (isCorrectSender) {
-          setMessages(prev => [...prev, messageData]);
-        }
-        
-        setConversationPartners(prev => prev.map(p => 
-          p._id === messageData.sender._id ? {...p, lastMessage: messageData} : p
-        ));
+      const isCurrentConversation = 
+        (selectedUser && 
+         ((messageData.sender._id === selectedUser._id && messageData.recipient._id === currentUserId) || 
+          (messageData.sender._id === currentUserId && messageData.recipient._id === selectedUser._id)));
   
-        if (!isCorrectSender) {
-          setUnreadCounts(prev => ({
-            ...prev,
-            [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
-          }));
-        }
+      // Skip if we've already seen this message
+      if (messageData._id && seenMessageIds.current.has(messageData._id)) {
+        return;
+      }
+  
+      // Mark this message as seen
+      if (messageData._id) {
+        seenMessageIds.current.add(messageData._id);
+      }
+  
+      if (isCurrentConversation) {
+        setMessages(prev => {
+          // Check for duplicates by ID, tempId, or content+sender+timestamp
+          const isDuplicate = prev.some(m => 
+            (m._id && m._id === messageData._id) ||
+            (m.tempId && messageData.tempId && m.tempId === messageData.tempId) ||
+            (m.content === messageData.content && 
+             m.sender._id === messageData.sender._id &&
+             Math.abs(new Date(m.timestamp) - new Date(messageData.timestamp)) < 1000)
+          );
+          
+          return isDuplicate ? prev : [...prev, messageData];
+        });
+      }
+  
+      // Update conversation partners
+      setConversationPartners(prev => prev.map(p => 
+        p._id === (messageData.sender._id === currentUserId ? messageData.recipient._id : messageData.sender._id) 
+          ? {...p, lastMessage: messageData} 
+          : p
+      ));
+  
+      // Update unread counts if needed
+      if (messageData.recipient._id === currentUserId && 
+          (!selectedUser || selectedUser._id !== messageData.sender._id)) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
+        }));
       }
     }
   };
+  
   
  // Replace your onGroupMessage function with this:
 const onGroupMessage = (data) => {
@@ -192,17 +231,21 @@ const onGroupMessage = (data) => {
 
   // Set up event listeners
   socket.on("connect", onConnect);
-  socket.on("refetch", onPrivateMessage);
   socket.on("group-message", onGroupMessage);
   socket.on("unread-count-update", onUnreadCountUpdate); // NEW
+  socket.on("private-message-sent", onPrivateMessageSent);
+  socket.on("private-message", onPrivateMessage);
 
   return () => {
     // Clean up listeners
     socket.off("connect", onConnect);
-    socket.off("refetch", onPrivateMessage);
     socket.off("group-message", onGroupMessage);
-    socket.off("unread-count-update", onUnreadCountUpdate); // NEW
+    socket.off("unread-count-update", onUnreadCountUpdate);
+    socket.off("private-message-sent", onPrivateMessageSent);
+    socket.off("private-message", onPrivateMessage);
+
     socket.disconnect();
+    socketRef.current = null;
   };
 }, [currentUserId, selectedUser, selectedGroup, setTotalUnread]); // Added setTotalUnread to dependencies
 
@@ -302,64 +345,70 @@ const onGroupMessage = (data) => {
   }
 };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  if (!newMessage.trim() || !selectedUser) return;
 
-    const tempId = Date.now().toString()
-    const optimisticMessage = {
-      _id: tempId,
-      sender: {
-        _id: currentUserId,
-        username: currentUsername,
-        profileImage: currentUserProfileImage,
+  const tempId = `temp-${Date.now()}`;
+  const optimisticMessage = {
+    _id: tempId,
+    tempId,
+    sender: {
+      _id: currentUserId,
+      username: currentUsername,
+      profileImage: currentUserProfileImage,
+    },
+    recipient: selectedUser,
+    content: newMessage,
+    timestamp: new Date().toISOString(),
+    type: "private",
+    isOptimistic: true
+  };
+
+  // Add optimistic message
+  setMessages(prev => [...prev, optimisticMessage]);
+  setNewMessage("");
+
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.post(
+      "http://localhost:5001/api/chat/messages",
+      {
+        recipient: selectedUser._id,
+        content: newMessage,
+        type: "private",
+        tempId
       },
-      recipient: selectedUser,
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-      type: "private",
-      
-    }
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
 
-    setMessages((prev) => [...prev, optimisticMessage])
-    setNewMessage("")
+    // The API response will now include the final message
+    // Socket events are handled by the backend
+    
+    // Replace optimistic message with server response
+    setMessages(prev => [
+      ...prev.filter(m => m.tempId !== tempId),
+      response.data
+    ]);
 
-    try {
-      const token = localStorage.getItem("token")
-      const response = await axios.post(
-        "http://localhost:5001/api/chat/messages",
-        {
-          recipient: selectedUser._id,
-          content: newMessage,
-          type: "private",
-        },
-        { headers: { Authorization: `Bearer ${token}` } },
+    // Update conversation partners
+    setConversationPartners(prev => 
+      prev.map(partner => 
+        partner._id === selectedUser._id 
+          ? { ...partner, lastMessage: response.data } 
+          : partner
+      ).sort((a, b) => 
+        new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
       )
+    );
 
-      setMessages((prev) => [...prev.filter((m) => m._id !== tempId), response.data])
-      socketRef.current.emit("private-message", response.data)
-
-      // Update conversation partners
-      setConversationPartners((prev) => {
-        return prev
-          .map((partner) => {
-            if (partner._id === selectedUser._id) {
-              return { ...partner, lastMessage: response.data }
-            }
-            return partner
-          })
-          .sort((a, b) => {
-            const aTime = a.lastMessage?.timestamp || a.createdAt
-            const bTime = b.lastMessage?.timestamp || b.createdAt
-            return new Date(bTime) - new Date(aTime)
-          })
-      })
-    } catch (err) {
-      console.error("Error sending message:", err)
-      setMessages((prev) => prev.filter((m) => m._id !== tempId))
-      alert("Failed to send message")
-    }
+  } catch (err) {
+    console.error("Error sending message:", err);
+    // Remove failed message
+    setMessages(prev => prev.filter(m => m.tempId !== tempId));
+    alert("Failed to send message");
   }
+};
 
   // Replace your handleSendGroupMessage function with this:
 const handleSendGroupMessage = async (e) => {
@@ -428,49 +477,52 @@ const handleSendGroupMessage = async (e) => {
   // --- User and Group Selection Functions ---
 
   const handleSelectUser = async (user) => {
-    if (!user) return
+    if (!user) return;
+    
     try {
-      // Clear previous selections
-      setSelectedGroup(null)
-      setSelectedUser(user)
-      setMessages([])
-      setError("")
-
-      // Clear unread count
+      // First reset all relevant state
+      setMessages([]); // Clear messages immediately
+      seenMessageIds.current = new Set(); // Reset seen messages tracker
+      setSelectedGroup(null);
+      setSelectedUser(user);
+      setError("");
+  
+      // Clear unread count for this user
       setUnreadCounts((prev) => {
-        const newCounts = { ...prev }
-        delete newCounts[user._id]
-        return newCounts
-      })
-
-      const token = localStorage.getItem("token")
-      if (!token) throw new Error("No authentication token found")
-
+        const newCounts = { ...prev };
+        delete newCounts[user._id];
+        return newCounts;
+      });
+  
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+  
       // Mark messages as read
-      await axios.post(
-        "http://localhost:5001/api/chat/mark-as-read",
-        { conversationId: user._id, type: "private" },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-
+      await markMessagesAsRead(user._id, "private");
+  
       // Fetch messages
       const response = await axios.get(`http://localhost:5001/api/chat/messages/${user._id}`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
-      setMessages(response.data)
-
-      // Scroll to bottom after messages are set
+      });
+  
+      // Mark fetched messages as seen
+      response.data.forEach(msg => {
+        if (msg._id) seenMessageIds.current.add(msg._id);
+      });
+  
+      // Set messages after ensuring no duplicates
+      setMessages(response.data);
+  
+      // Scroll to bottom
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-      }, 0)
-
-      // Mark messages as read
-      await markMessagesAsRead(user._id, "private")
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
     } catch (err) {
-      console.error("Error selecting user:", err)
-      setError("Failed to open chat")
+      console.error("Error selecting user:", err);
+      setError("Failed to open chat");
     }
-  }
+  };
+  
   // Scroll to bottom of messages
   useEffect(() => {
     if (messages.length > 0) {
@@ -737,10 +789,16 @@ const handleSendGroupMessage = async (e) => {
   const isOwnMessage = message.sender._id === currentUserId;
   
   return (
-    <div key={message._id} className={`message ${isOwnMessage ? "sent" : "received"}`}>
-      <div className={"message-content"}>
+    <div 
+      key={message._id || message.tempId} 
+      className={`message ${isOwnMessage ? "sent" : "received"}`}
+    >
+      <div className="message-content">
         <span>{message.content}</span>
-        <span className="message-time">{formatTime(message.timestamp)}</span>
+        <span className="message-time">
+          {formatTime(message.timestamp)}
+          {message.isOptimistic && " (Sending...)"}
+        </span>
       </div>
     </div>
   );

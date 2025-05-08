@@ -99,39 +99,46 @@ socket.on('authenticate', async (token) => {
   }
 });
 
-// Handle private messages
-socket.on('private-message', async (messageData) => {
-  console.log('Received private message:', messageData);
+// Remove the existing private-message handler and replace with:
+socket.on('send-private-message', async (data, callback) => {
   try {
+    const { recipientId, content, tempId } = data;
+    
     // Validate sender
-    // if (messageData.sender !== socket.userId) {
-    //   throw new Error('Unauthorized message sender');
-    // }
+    if (!socket.userId) throw new Error('Not authenticated');
+    
     // Create and save message
     const message = new Message({
-      sender: messageData.sender,
-      recipient: messageData.recipient,
-      content: messageData.content,
-      timestamp: new Date(),
+      sender: socket.userId,
+      recipient: recipientId,
+      content,
       type: 'private',
-      status: 'delivered'
+      timestamp: new Date()
     });
 
     const savedMessage = await message.save();
-    // const populatedMessage = await Message.populate(savedMessage, [
-    //   { path: 'sender', select: 'username profileImage' },
-    //   { path: 'recipient', select: 'username profileImage' }
-    // ]);
+    const populated = await Message.populate(savedMessage, [
+      { path: 'sender', select: 'username profileImage' },
+      { path: 'recipient', select: 'username profileImage' }
+    ]);
 
-    io.emit('refetch',{messageData})
+    // Prepare response
+    const response = {
+      ...populated.toObject(),
+      tempId
+    };
+
+    // Emit to recipient only
+    io.to(`user_${recipientId}`).emit('private-message', { 
+      messageData: response 
+    });
+
+    // Send confirmation to sender
+    callback({ status: 'success', message: response });
     
-
   } catch (error) {
-    console.error('Message send error:', error);
-    // Safely handle callback if it exists
-    if (typeof callback === 'function') {
-      callback({ status: 'error', error: error.message });
-    }
+    console.error('Error sending private message:', error);
+    callback({ status: 'error', error: error.message });
   }
 });
 
