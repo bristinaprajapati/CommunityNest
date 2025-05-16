@@ -3,14 +3,12 @@ import axios from "axios";
 import Sidebar from "../Sidebar/sidebar.jsx";
 import "./feed.css";
 import {
-  FiMoreVertical,
   FiHeart,
-  FiMessageSquare,
   FiTrash2,
-  FiUser,
+  FiEdit2,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { FaUserCircle, } from "react-icons/fa";
+import { FaUserCircle } from "react-icons/fa";
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
@@ -23,32 +21,39 @@ const Feed = () => {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
- // Get userId from localStorage first
-const [userId, setUserId] = useState(() => {
-  return localStorage.getItem('userId') || null;
-});
-
-
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      await fetchCurrentUser();
-      await fetchPosts();
-    } catch (error) {
-      console.error("Error initializing feed:", error);
-    }
-  };
-  fetchData();
-}, []);
-
-
+  // Get userId from localStorage first
+  const [userId, setUserId] = useState(() => {
+    return localStorage.getItem("userId") || null;
+  });
 
   useEffect(() => {
-    if (user?._id) { // Only fetch myPosts if user._id exists
+    // If userId exists in localStorage but not in state, set it
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId && !userId) {
+      console.log("Setting userId from localStorage on mount:", storedUserId);
+      setUserId(storedUserId);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await fetchCurrentUser();
+        await fetchPosts();
+      } catch (error) {
+        console.error("Error initializing feed:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (user?._id) {
+      // Only fetch myPosts if user._id exists
       fetchMyPosts();
       console.log("User ID:", user._id);
     }
-  }, [user]); 
+  }, [user]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -63,10 +68,10 @@ useEffect(() => {
         console.error("Error initializing feed:", error);
       }
     };
-    
+
     initializeData();
   }, []); // Empty dependency array to run only once on mount
-  
+
   // Add this effect to fetch myPosts whenever userId changes
   useEffect(() => {
     if (userId) {
@@ -74,35 +79,87 @@ useEffect(() => {
     }
   }, [userId]);
 
-  const fetchCurrentUser = async () => {
+  // Add this function to your Feed component
+  const updatePost = async (postId, updatedContent) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        console.log("No token found");
-        return;
+        throw new Error("Authentication token not found");
       }
   
-      const response = await axios.get("http://localhost:5001/api/auth/user", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (response.data) {
-        setUser(response.data);
-        // Ensure we store the user ID in state and localStorage
-        const userId = response.data._id || response.data.userId;
-        if (userId) {
-          setUserId(userId);
-          localStorage.setItem('userId', userId);
+      const response = await axios.put(
+        `http://localhost:5001/api/posts/${postId}`,
+        { content: updatedContent },
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
         }
+      );
+  
+      if (response.data.success) {
+        // Update both posts and myPosts states
+        setPosts(posts.map(post => 
+          post._id === postId ? { ...post, content: updatedContent } : post
+        ));
+        setMyPosts(myPosts.map(post => 
+          post._id === postId ? { ...post, content: updatedContent } : post
+        ));
+        
+        return response.data;
+      } else {
+        throw new Error(response.data.message || "Failed to update post");
       }
     } catch (error) {
-      console.error("Error fetching user:", error);
-      if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-      }
+      console.error("Detailed update error:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Show more detailed error to user
+      const errorMsg = error.response?.data?.message || 
+                      error.message || 
+                      "Failed to update post";
+      alert(`Update failed: ${errorMsg}`);
+      
+      throw error;
     }
   };
 
+  // In your fetchCurrentUser function
+const fetchCurrentUser = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found");
+      return null;
+    }
+
+    const response = await axios.get("http://localhost:5001/api/auth/user", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Make sure to get the correct user ID field
+    const userData = response.data.user || response.data;
+    const userId = userData._id || userData.id;
+
+    if (!userId) {
+      throw new Error("User ID not found in response");
+    }
+
+    // Update state and localStorage
+    setUser(userData);
+    setUserId(userId.toString());
+    localStorage.setItem("userId", userId.toString());
+
+    return userId.toString();
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    return null;
+  }
+};
 
   const fetchPosts = async () => {
     try {
@@ -117,13 +174,13 @@ useEffect(() => {
   };
 
   const fetchMyPosts = async () => {
-    const currentUserId = userId || localStorage.getItem('userId');
-    
+    const currentUserId = userId || localStorage.getItem("userId");
+
     if (!currentUserId) {
       console.log("No user ID available to fetch my posts");
       return;
     }
-  
+
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
@@ -132,7 +189,7 @@ useEffect(() => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      
+
       if (response.data && response.data.posts) {
         setMyPosts(response.data.posts);
       } else {
@@ -143,21 +200,13 @@ useEffect(() => {
       console.error("Detailed error fetching my posts:", {
         message: error.response?.data?.message || error.message,
         status: error.response?.status,
-        userId: currentUserId
+        userId: currentUserId,
       });
       setMyPosts([]);
     }
   };
 
-  // useEffect(() => {
-  //   console.log("Current User ID:", userId);
-  // }, [userId]);
-  
-  // useEffect(() => {
-  //   console.log("My Posts State:", myPosts);
-  // }, [myPosts]);
-
-    const handlePostSubmit = async (e) => {
+  const handlePostSubmit = async (e) => {
     e.preventDefault();
     if (!newPostText.trim() && !selectedImage) return;
 
@@ -185,14 +234,14 @@ useEffect(() => {
       // Update both posts and myPosts states
       setPosts([response.data.post, ...posts]);
       setMyPosts([response.data.post, ...myPosts]);
-      
+
       // Reset form
       setNewPostText("");
       setSelectedImage(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      
+
       // Switch to "My Posts" tab
       setActiveTab("my");
     } catch (error) {
@@ -203,26 +252,33 @@ useEffect(() => {
     }
   };
 
-
-  const deletePost = async (postId, e) => {
-    e.stopPropagation();
+  // Update your frontend deletePost function:
+  const deletePost = async (postId) => {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("You need to be logged in to delete posts");
+      }
+
       await axios.delete(`http://localhost:5001/api/posts/${postId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      
-      // Remove from both posts and myPosts
-      setPosts(posts.filter((post) => post._id !== postId));
-      setMyPosts(myPosts.filter((post) => post._id !== postId));
-      
-      setDropdownOpenId(null);
+
+      // Remove the post from both posts and myPosts states
+      setPosts((prevPosts) => prevPosts.filter((post) => post._id !== postId));
+      setMyPosts((prevPosts) =>
+        prevPosts.filter((post) => post._id !== postId)
+      );
+
+      return { success: true };
     } catch (error) {
-      console.error("Error deleting post:", error);
-      alert("Failed to delete post");
+      console.error("Delete error:", error);
+      throw error;
     }
   };
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -257,8 +313,6 @@ useEffect(() => {
       console.error("Error liking post:", error);
     }
   };
-
-  
 
   const formatDate = (dateString) => {
     const options = {
@@ -337,7 +391,11 @@ useEffect(() => {
               <PostItem
                 key={post._id}
                 post={post}
-                currentUserId={user?._id}
+                showMenu={post.author._id === (user?._id || userId)}
+                currentUserId={
+                  user?._id || userId || localStorage.getItem("userId")
+                }
+                activeTab={activeTab}
                 onLike={handleLike}
                 onDelete={deletePost}
                 dropdownOpenId={dropdownOpenId}
@@ -354,7 +412,12 @@ useEffect(() => {
             <PostItem
               key={post._id}
               post={post}
-              currentUserId={user?._id}
+              onUpdate={updatePost} 
+              showMenu={true}
+              currentUserId={
+                user?._id || userId || localStorage.getItem("userId")
+              }
+              activeTab={activeTab}
               onLike={handleLike}
               onDelete={deletePost}
               dropdownOpenId={dropdownOpenId}
@@ -367,78 +430,158 @@ useEffect(() => {
   );
 };
 
-// Separate PostItem component for better readability
-const PostItem = ({
-  post,
-  currentUserId,
-  onLike,
-  onDelete,
-  dropdownOpenId,
-  setDropdownOpenId,
-}) => {
-  const isAuthor = post.author._id === currentUserId;
-  const isLiked = post.likedBy.includes(currentUserId);
+const PostItem = ({ post, currentUserId, onLike, onDelete, activeTab, onUpdate }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(post.content);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = async (e) => {
+    e.stopPropagation();
+
+    try {
+      if (!window.confirm("Are you sure you want to delete this post?")) {
+        return;
+      }
+
+      setIsDeleting(true);
+      await onDelete(post._id);
+      // The parent component will handle updating the state
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete post");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await onUpdate(post._id, editedContent);
+      if (result && result.success) {
+        setIsEditing(false);
+      } else {
+        throw new Error("Update failed");
+      }
+    } catch (error) {
+      console.error('Update error:', {
+        error: error,
+        response: error.response?.data,
+        postId: post._id,
+        userId: currentUserId
+      });
+      alert(error.response?.data?.message || "Failed to update post");
+    }
+  };
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  };
+
+  const authorId = post.author?._id || post.author;
 
   return (
-    <div className="post">
-      <div className="post-header">
-        {post.author.profileImage ? (
+    <div className="feed-post">
+      {/* Header section */}
+      <div className="feed-post__header">
+        {post.author?.profileImage ? (
           <img
             src={post.author.profileImage}
-            alt={post.author.username}
-            className="post-avatar"
+            alt={post.author.username || "User"}
+            className="feed-post__avatar"
           />
         ) : (
-          <FaUserCircle className="post-avatar default-avatar" size={40} />
+          <FaUserCircle
+            className="feed-post__avatar feed-post__avatar--default"
+            size={40}
+          />
         )}
-        <div className="post-author">
-          <span className="author-name">{post.author.username}</span>
-          <span className="post-time">{formatDate(post.createdAt)}</span>
+        <div className="feed-post__author-info">
+          <span className="feed-post__author-name">
+            {post.author?.username || "Unknown User"}
+          </span>
+          <span className="feed-post__time">{formatDate(post.createdAt)}</span>
         </div>
-        {isAuthor && (
-          <div className="post-options">
+
+        {activeTab === "my" && (
+          <div className="feed-post__actions-icons">
             <button
-              className="options-button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDropdownOpenId(dropdownOpenId === post._id ? null : post._id);
-              }}
+              onClick={handleEditClick}
+              className="feed-post__edit-button"
             >
-              <FiMoreVertical />
+              <FiEdit2 />
             </button>
-            {dropdownOpenId === post._id && (
-              <div className="post-dropdown-menu">
-                <button
-                  className="dropdown-item"
-                  onClick={(e) => onDelete(post._id, e)}
-                >
-                  <FiTrash2 /> Delete
-                </button>
+            <button
+              onClick={handleDeleteClick}
+              className="feed-post__delete-button"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "..." : <FiTrash2 />}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Content section */}
+      <div className="feed-post__content">
+        {isEditing ? (
+          <form onSubmit={handleEditSubmit} className="edit-post-form">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="edit-post-textarea"
+              required
+            />
+            <div className="edit-post-actions">
+              <button
+                type="button"
+                className="edit-post-cancel"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="edit-post-submit">
+                Save
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            {post.content && <p className="feed-post__text">{post.content}</p>}
+            {post.image && (
+              <div className="feed-post__image-wrapper">
+                <img src={post.image} alt="Post" className="feed-post__image" />
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
-      <div className="post-content">
-        {post.content && <p className="post-text">{post.content}</p>}
-        {post.image && (
-          <div className="post-image-container">
-            <img src={post.image} alt="Post" className="post-image" />
-          </div>
-        )}
-      </div>
-      <div className="post-actions">
-        <button
-          onClick={() => onLike(post._id)}
-          className={`like-button ${isLiked ? "liked" : ""}`}
-        >
-          <FiHeart className={isLiked ? "liked" : ""} />
-          {post.likes > 0 && <span>{post.likes}</span>}
-        </button>
-        <button className="comment-button">
-          {/* <FiMessageSquare /> Comment */}
-        </button>
-      </div>
+
+      {/* Actions section */}
+      {!isEditing && (
+        <div className="feed-post__actions">
+          <button
+            onClick={() => onLike(post._id)}
+            className={`feed-post__action-button feed-post__action-button--like ${
+              post.likedBy.includes(currentUserId)
+                ? "feed-post__action-button--liked"
+                : ""
+            }`}
+          >
+            <FiHeart
+              className={
+                post.likedBy.includes(currentUserId)
+                  ? "feed-post__action-icon--liked"
+                  : ""
+              }
+            />
+            {post.likes > 0 && (
+              <span className="feed-post__like-count">{post.likes}</span>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

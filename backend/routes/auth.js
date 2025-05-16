@@ -464,8 +464,6 @@ router.get("/user/:id", authenticate, async (req, res) => {
 
 
 
-
-
 router.get('/unread-count', authenticate, async (req, res) => {
     try {
       console.log('Fetching unread count for user:', req.userId);

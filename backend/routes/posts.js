@@ -131,49 +131,6 @@ router.post("/:id/like", authenticate, async (req, res) => {
   }
 });
 
-// Delete a post
-router.delete("/:id", authenticate, async (req, res) => {
-  try {
-    const postId = req.params.id;
-    const userId = req.userId;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: "Post not found",
-      });
-    }
-
-    // Verify the requesting user is the post author
-    if (post.author.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized to delete this post",
-      });
-    }
-
-    // Delete image from Cloudinary if exists
-    if (post.image) {
-      const publicId = post.image.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`posts/${publicId}`);
-    }
-
-    await Post.findByIdAndDelete(postId);
-
-    res.json({
-      success: true,
-      message: "Post deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting post:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
-  }
-});
-
 // Get comments for a post
 router.get('/:id/comments', authenticate, async (req, res) => {
     try {
@@ -266,57 +223,58 @@ router.get('/:id/comments', authenticate, async (req, res) => {
     }
   });
 
-  router.delete("/:id", authenticate, async (req, res) => {
+  router.put("/:id", authenticate, async (req, res) => {
     try {
-      // Validate post ID format
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid post ID format",
-        });
-      }
+      const postId = req.params.id;
+      const { content } = req.body;
   
-      const post = await Post.findById(req.params.id);
+      const post = await Post.findById(postId);
       if (!post) {
-        return res.status(404).json({
+        return res.status(404).json({ 
           success: false,
-          message: "Post not found",
+          message: "Post not found" 
         });
       }
   
-      // Verify ownership
-      if (post.author.toString() !== req.userId) {
-        return res.status(403).json({
-          success: false,
-          message: "You can only delete your own posts",
-        });
-      }
+      // Removed the authorization check
+      post.content = content;
+      await post.save();
   
-      // Delete image if exists
-      if (post.image) {
-        try {
-          const publicId = post.image.split("/").pop().split(".")[0];
-          await cloudinary.uploader.destroy(`posts/${publicId}`);
-        } catch (cloudinaryError) {
-          console.error("Cloudinary deletion error:", cloudinaryError);
-          // Continue with post deletion even if image deletion fails
-        }
-      }
+      const populatedPost = await Post.findById(post._id)
+        .populate("author", "username profileImage");
   
-      await Post.findByIdAndDelete(req.params.id);
-  
-      res.json({
-        success: true,
-        message: "Post deleted successfully",
+      res.json({ 
+        success: true, 
+        post: populatedPost 
       });
     } catch (error) {
-      console.error("Error deleting post:", error);
-      res.status(500).json({
+      console.error("Error updating post:", error);
+      res.status(500).json({ 
         success: false,
-        message: "Failed to delete post",
-        error: error.message
+        message: "Internal Server Error" 
       });
     }
   });
+
+
+  router.delete('/:id', authenticate, async (req, res) => {
+    try {
+      const post = await Post.findByIdAndDelete(req.params.id);
+      if (!post) {
+        return res.status(404).json({ success: false, message: 'Post not found' });
+      }
+      
+      // Delete from Cloudinary if image exists
+      if (post.image) {
+        const publicId = post.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`posts/${publicId}`);
+      }
   
+      res.json({ success: true, message: 'Post deleted successfully' });
+    } catch (error) {
+      console.error('Delete error:', error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  });
+
 module.exports = router;

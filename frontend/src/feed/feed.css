@@ -1,38 +1,8 @@
-/* General Styles */
+/* General Feed Styles */
 .feed-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    margin-top: 70px;
-    margin-left: 550px;
-  }
-
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-  .feed-container {
-    margin-left: 200px;
-  }
-}
-
-@media (max-width: 992px) {
-  .feed-container {
-    margin-left: 0;
-    padding-top: 80px; /* Extra space for mobile header */
-  }
-}
-
-@media (max-width: 768px) {
-  .feed-container {
-    padding: 15px;
-    padding-top: 70px;
-  }
-}
-
-@media (max-width: 576px) {
-  .feed-container {
-    padding: 10px;
-    padding-top: 60px;
-  }
+  max-width: 600px;
+  margin: 70px auto 0 550px;
+  padding: 20px;
 }
 
 .feed-header {
@@ -69,6 +39,7 @@
   min-height: 60px;
   margin-bottom: 10px;
   box-sizing: border-box;
+  
 }
 
 .form-actions {
@@ -88,7 +59,7 @@
 .upload-button {
   background-color: #f0f2f5;
   border: none;
-  border-radius: 4px;
+  border-radius: 30px;
   padding: 8px 12px;
   cursor: pointer;
   font-size: 14px;
@@ -111,13 +82,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 150px;
+  
 }
 
 .post-button {
   background-color: #1877f2;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 30px;
   padding: 8px 16px;
   cursor: pointer;
   font-weight: 600;
@@ -149,186 +121,170 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Post Styles */
-.post {
-  background-color: #fff;
+/* Feed Post Styles */
+.feed-post {
+  position: relative;
+  background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  word-break: break-word;
+  margin-bottom: 16px;
+  padding: 16px;
 }
 
-.post-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  position: relative;
-  text-align: left;
-}
 
-.post-avatar {
+.feed-post__avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  margin-right: 10px;
   object-fit: cover;
-  flex-shrink: 0;
+  margin-right: 12px;
 }
 
-.default-avatar {
+.feed-post__avatar--default {
   color: #ccc;
 }
 
-.post-author {
+.feed-post__author-info {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  min-width: 0;
 }
 
-.author-name {
+.feed-post__author-name {
   font-weight: 600;
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
 }
 
-.post-time {
+.feed-post__time {
   font-size: 12px;
-  color: #65676b;
+  color: #999;
 }
 
-.post-content {
+.feed-post__content {
   margin-bottom: 12px;
 }
 
-.post-content p {
-  text-align: left;
-  margin: 0 0 10px 0;
-  font-size: 15px;
+.feed-post__text {
+  margin: 0 0 12px 0;
+  font-size: 14px;
   line-height: 1.4;
+  color: #333;
+  text-align: left;
 }
 
-.post-image-container {
-  margin-top: 10px;
+.feed-post__image-wrapper {
+  margin-top: 12px;
 }
 
-.post-image {
+.feed-post__image {
   width: 100%;
   border-radius: 8px;
-  max-height: 500px;
+  max-height: 400px;
   object-fit: contain;
 }
 
-/* Post Actions */
-.post-actions {
+.feed-post__actions {
   display: flex;
-  border-top: 1px solid #ddd;
-  padding-top: 8px;
-  gap: auto;
+  border-top: 1px solid #eee;
+  padding-top: 12px;
 }
 
-.comment-button {
-  background: none;
-  border: none;
-  cursor: pointer;
+.feed-post__action-button {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: #65676b;
-  font-size: 15px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  flex-grow: 1;
-  justify-content: center;
-}
-.like-button {
   background: none;
   border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #65676b;
-  font-size: 15px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  flex-grow: 1;
-  justify-content: center;
-}
-
-.like-button:hover, .comment-button:hover {
-  background-color: #f0f2f5;
-}
-
-.like-button.liked {
-  color: #f33e58;
-}
-
-/* Post Options Dropdown */
-.post-options {
-  position: relative;
-}
-
-.options-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #65676b;
-  padding: 5px;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.options-button:hover {
-  background-color: #f0f2f5;
-}
-
-.post-dropdown-menu {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  min-width: 120px;
-  overflow: hidden;
-}
-
-.dropdown-item {
-  width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  background: none;
-  border: none;
+  color: #666;
   cursor: pointer;
   font-size: 14px;
+  margin-right: 16px;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.feed-post__action-button:hover {
   color: #333;
 }
 
-.dropdown-item:hover {
-  background-color: #f0f2f5;
+.feed-post__action-icon--liked {
+  fill: red; /* For the heart icon */
+  color: red; /* Fallback */
+}
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
-/* Responsive adjustments for post actions */
-@media (max-width: 400px) {
-  .post-actions {
-    flex-wrap: wrap;
-  }
-  
-  .like-button, .comment-button {
-    flex-basis: calc(50% - 5px);
-  }
+.feed-post__action-icon--liked {
+  animation: heartBeat 0.5s ease-in-out;
+}
+
+.feed-post__like-count {
+  margin-left: 4px;
+}
+
+/* Post Options Styles */
+.feed-post__options {
+  position: relative;
+  margin-left: auto;
+}
+
+.feed-post__options-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 18px;
+  transition: all 0.2s;
+}
+
+.feed-post__options-button:hover {
+  color: #333;
+}
+
+.feed-post__dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.feed-post__dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.feed-post__dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.feed-post__dropdown-item svg {
+  margin-right: 8px;
+  font-size: 16px;
 }
 
 
-/* Tabs styling */
+
+/* Tabs */
 .feed-tabs {
   display: flex;
   margin: 15px 0;
@@ -343,6 +299,7 @@
   font-size: 14px;
   color: #65676b;
   position: relative;
+
 }
 
 .tab-button.active {
@@ -360,27 +317,228 @@
   background-color: #1877f2;
 }
 
-/* Delete button styling */
-.dropdown-item {
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .feed-container {
+    margin-left: 200px;
+  }
+}
+
+@media (max-width: 992px) {
+  .feed-container {
+    margin-left: 0;
+    padding-top: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .feed-container {
+    padding: 15px;
+    padding-top: 70px;
+  }
+}
+
+@media (max-width: 576px) {
+  .feed-container {
+    padding: 10px;
+    padding-top: 60px;
+  }
+  
+  .feed-post__actions {
+    flex-wrap: wrap;
+  }
+  
+  .feed-post__action-button {
+    flex-basis: calc(50% - 5px);
+  }
+}
+
+/* Post Header Styles */
+.feed-post__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+/* Post Menu Styles */
+.feed-post__menu {
+  margin-left: auto; /* This pushes the menu to the right */
+  position: relative;
+}
+
+.feed-post__menu-button {
+  background: none;
+  border: none;
+  color: #65676b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 18px;
+}
+
+.feed-post__menu-button:hover {
+  background-color: #f0f2f5;
+}
+
+
+.feed-post__menu-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
   width: 100%;
   background: none;
   border: none;
   text-align: left;
-  cursor: pointer;
   color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
 }
 
-.dropdown-item:hover {
-  background-color: #f0f2f5;
+.feed-post__menu-item:hover {
+  background-color: #f5f5f5;
 }
 
-/* My Posts empty state */
-.no-posts {
-  text-align: center;
-  padding: 40px 20px;
-  color: #666;
+.feed-post__menu-item svg {
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.feed-post__menu-item--delete {
+  color: #f44336;
+}
+
+
+
+/* Add these to your feed.css file */
+.edit-post-form {
+  margin-top: 10px;
+}
+
+.edit-post-textarea {
+  width: 90%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 100px;
+  margin-bottom: 10px;
+}
+
+.edit-post-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.edit-post-submit {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+.edit-post-cancel {
+  background-color: #f44336;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+.feed-post__menu-item--delete {
+  color: #f44336;
+}
+.feed-post__menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1000; /* Ensure it's above other elements */
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+/* Ensure dropdown appears above other elements */
+.feed-post__menu {
+  position: relative;
+  z-index: 10;
+}
+
+.feed-post__menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 100;
+  min-width: 120px;
+  padding: 5px 0;
+}
+
+.feed-post__menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.feed-post__menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+
+/* Add these styles to your feed.css */
+.feed-post__actions-icons {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.feed-post__edit-button,
+.feed-post__delete-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #65676b;
+}
+
+.feed-post__edit-button:hover {
+  color: #1877f2;
+  background-color: #e7f3ff;
+}
+
+.feed-post__delete-button:hover {
+  color: #f44336;
+  background-color: #ffebee;
+}
+
+.feed-post__edit-button:disabled,
+.feed-post__delete-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feed-post__edit-button svg,
+.feed-post__delete-button svg {
+  font-size: 18px;
 }

@@ -1438,7 +1438,7 @@
 
 .message-preview-container {
   display: flex;
-  align-items: center;
+  align-items: left;
 }
 
 .message-preview {
@@ -1479,3 +1479,34 @@
 
 
 
+/* Add to your chat.css file */
+.conversation-item {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.conversation-content {
+  flex: 1;
+  display: flex;
+  padding: 10px;
+}
+
+.delete-conversation-btn {
+  background: none;
+  border: none;
+  color: #999;
+  padding: 8px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.conversation-item:hover .delete-conversation-btn {
+  opacity: 1;
+}
+
+.delete-conversation-btn:hover {
+  color: #737373;
+}

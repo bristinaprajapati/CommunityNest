@@ -361,5 +361,116 @@ router.get('/unread-counts', authenticate, async (req, res) => {
   }
 });
 
+// // Add to your routes/chat.js
+// router.delete('/messages/:messageId', authenticate, async (req, res) => {
+//   try {
+//     const message = await Message.findOne({
+//       _id: req.params.messageId,
+//       $or: [
+//         { sender: req.userId },  // User can delete their own messages
+//         { 'group.admins': req.userId }  // Group admins can delete any group message
+//       ]
+//     });
+
+//     if (!message) {
+//       return res.status(404).json({ message: 'Message not found or unauthorized' });
+//     }
+
+//     // Soft delete (recommended)
+//     message.deleted = true;
+//     message.deletedAt = new Date();
+//     await message.save();
+
+//     // Or hard delete:
+//     // await message.remove();
+
+//     // Notify clients via socket
+//     if (req.app.get('io')) {
+//       const io = req.app.get('io');
+      
+//       if (message.type === 'private') {
+//         io.to(`user_${message.sender}`).to(`user_${message.recipient}`)
+//           .emit('message-deleted', { messageId: message._id });
+//       } else if (message.group) {
+//         io.to(`group_${message.group}`).emit('message-deleted', { 
+//           messageId: message._id,
+//           groupId: message.group
+//         });
+//       }
+//     }
+
+//     res.json({ success: true });
+//   } catch (error) {
+//     console.error('Error deleting message:', error);
+//     res.status(500).json({ message: 'Error deleting message' });
+//   }
+// });
+// Delete private conversation
+router.delete('/conversation/:userId', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.userId;
+
+    // Delete all messages between these two users
+    await Message.deleteMany({
+      $or: [
+        { sender: currentUserId, recipient: userId, type: 'private' },
+        { sender: userId, recipient: currentUserId, type: 'private' }
+      ]
+    });
+
+    // // Notify via socket if needed
+    // if (req.app.get('io')) {
+    //   const io = req.app.get('io');
+    //   io.to(`user_${currentUserId}`).emit('conversation-deleted', { 
+    //     conversationId: userId,
+    //     type: 'private'
+    //   });
+    //   io.to(`user_${userId}`).emit('conversation-deleted', { 
+    //     conversationId: currentUserId,
+    //     type: 'private'
+    //   });
+    // }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ message: 'Error deleting conversation' });
+  }
+});
+
+// Delete group conversation (for current user only)
+router.delete('/group-conversation/:groupId', authenticate, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const currentUserId = req.userId;
+
+    // Remove user from group members
+    await Group.findByIdAndUpdate(
+      groupId,
+      { $pull: { members: currentUserId } },
+      { new: true }
+    );
+
+    // Notify via socket if needed
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      io.to(`user_${currentUserId}`).emit('conversation-deleted', { 
+        conversationId: groupId,
+        type: 'group'
+      });
+      io.to(`group_${groupId}`).emit('group-member-left', {
+        groupId,
+        userId: currentUserId
+      });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error leaving group:', error);
+    res.status(500).json({ message: 'Error leaving group' });
+  }
+});
+
 module.exports = router;
 

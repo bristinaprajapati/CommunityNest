@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faSearch, faPaperPlane, faUser, faUsers, faPlus, faTimes } from "@fortawesome/free-solid-svg-icons"
+import { faSearch, faPaperPlane, faUser, faUsers, faPlus, faTimes, faTrash } from "@fortawesome/free-solid-svg-icons"
 import "./chat.css"
 import Sidebar from "../Sidebar/sidebar"
 import { io } from "socket.io-client"
@@ -637,8 +637,6 @@ const handleSendGroupMessage = async (e) => {
     }
   }
 
-  // --- Helper Functions ---
-
   const formatTime = (timestamp) => {
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -657,6 +655,52 @@ const handleSendGroupMessage = async (e) => {
       return date.toLocaleDateString([], { month: "short", day: "numeric" })
     }
   }
+
+  const handleDeleteConversation = async (conversation) => {
+    if (!window.confirm(`Are you sure you want to delete this ${conversation.type} conversation?`)) {
+      return;
+    }
+  
+    try {
+      const token = localStorage.getItem("token");
+      let endpoint = "";
+      
+      if (conversation.type === "private") {
+        endpoint = `http://localhost:5001/api/chat/conversation/${conversation._id}`;
+      } else {
+        endpoint = `http://localhost:5001/api/chat/group-conversation/${conversation._id}`;
+      }
+  
+      await axios.delete(endpoint, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+  
+      // Update state based on conversation type
+      if (conversation.type === "private") {
+        setConversationPartners(prev => prev.filter(p => p._id !== conversation._id));
+        if (selectedUser?._id === conversation._id) {
+          setSelectedUser(null);
+          setMessages([]);
+        }
+      } else {
+        setGroups(prev => prev.filter(g => g._id !== conversation._id));
+        if (selectedGroup?._id === conversation._id) {
+          setSelectedGroup(null);
+          setMessages([]);
+        }
+      }
+  
+      // Remove from unread counts
+      setUnreadCounts(prev => {
+        const newCounts = {...prev};
+        delete newCounts[conversation._id];
+        return newCounts;
+      });
+    } catch (err) {
+      console.error("Error deleting conversation:", err);
+      alert("Failed to delete conversation");
+    }
+  };
 
   // --- Render Function ---
 
@@ -704,60 +748,76 @@ const handleSendGroupMessage = async (e) => {
           <FontAwesomeIcon icon={faPlus} className="plus-icon" />
         </button>
 
-        <div className="conversation-list">
-          {activeConversations.map((conversation) => (
-            <div
-              key={`${conversation.type}-${conversation._id}`}
-              className={`conversation-item ${
-                selectedUser?._id === conversation._id || selectedGroup?._id === conversation._id ? "active" : ""
-              }`}
-              onClick={() =>
-                conversation.type === "private" ? handleSelectUser(conversation) : handleSelectGroup(conversation)
-              }
-            >
-              <div className="conversation-avatar">
-                {conversation.type === "private" ? (
-                  conversation.profileImage ? (
-                    <img src={conversation.profileImage || "/placeholder.svg"} alt={conversation.username} />
-                  ) : (
-                    <FontAwesomeIcon icon={faUser} />
-                  )
-                ) : (
-                  <FontAwesomeIcon icon={faUsers} />
-                )}
-                {conversation.type === "private" && onlineUsers.includes(conversation._id) && (
-                  <span className="online-indicator"></span>
-                )}
-              </div>
-              <div className="conversation-details">
-                <div className="conversation-header">
-                  <h4>{conversation.name}</h4>
-                  {conversation.lastMessage && (
-                    <span className="message-time">{formatLastMessageTime(conversation.lastMessage.timestamp)}</span>
-                  )}
-                </div>
-                {conversation.lastMessage && (
-                  <div className="message-preview-container">
-                    <p className="message-preview">
-                      {conversation.lastMessage.sender?._id === currentUserId
-                        ? `You: ${conversation.lastMessage.content.substring(0, 25)}`
-                        : conversation.type === "private"
-                          ? conversation.lastMessage.content.substring(0, 25)
-                          : `${conversation.lastMessage.sender?.username}: ${conversation.lastMessage.content.substring(
-                              0,
-                              25,
-                            )}`}
-                      {conversation.lastMessage.content.length > 25 ? "..." : ""}
-                    </p>
-                    {unreadCounts[conversation._id] > 0 && (
-                      <span className="unread-count">{unreadCounts[conversation._id]}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+       <div className="conversation-list">
+  {activeConversations.map((conversation) => (
+    <div
+      key={`${conversation.type}-${conversation._id}`}
+      className={`conversation-item ${
+        selectedUser?._id === conversation._id || selectedGroup?._id === conversation._id ? "active" : ""
+      }`}
+    >
+      <div 
+        className="conversation-content"
+        onClick={() =>
+          conversation.type === "private" 
+            ? handleSelectUser(conversation) 
+            : handleSelectGroup(conversation)
+        }
+      >
+        <div className="conversation-avatar">
+          {conversation.type === "private" ? (
+            conversation.profileImage ? (
+              <img src={conversation.profileImage || "/placeholder.svg"} alt={conversation.username} />
+            ) : (
+              <FontAwesomeIcon icon={faUser} />
+            )
+          ) : (
+            <FontAwesomeIcon icon={faUsers} />
+          )}
+          {conversation.type === "private" && onlineUsers.includes(conversation._id) && (
+            <span className="online-indicator"></span>
+          )}
         </div>
+        <div className="conversation-details">
+          <div className="conversation-header">
+            <h4>{conversation.name}</h4>
+            {conversation.lastMessage && (
+              <span className="message-time">{formatLastMessageTime(conversation.lastMessage.timestamp)}</span>
+            )}
+          </div>
+          {conversation.lastMessage && (
+            <div className="message-preview-container">
+              <p className="message-preview">
+                {conversation.lastMessage.sender?._id === currentUserId
+                  ? `You: ${conversation.lastMessage.content.substring(0, 25)}`
+                  : conversation.type === "private"
+                    ? conversation.lastMessage.content.substring(0, 25)
+                    : `${conversation.lastMessage.sender?.username}: ${conversation.lastMessage.content.substring(
+                        0,
+                        25,
+                      )}`}
+                {conversation.lastMessage.content.length > 25 ? "..." : ""}
+              </p>
+              {unreadCounts[conversation._id] > 0 && (
+                <span className="unread-count">{unreadCounts[conversation._id]}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <button 
+        className="delete-conversation-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDeleteConversation(conversation);
+        }}
+        title={`Delete ${conversation.type} conversation`}
+      >
+        <FontAwesomeIcon icon={faTrash}/>
+      </button>
+    </div>
+  ))}
+</div>
       </div>
 
       <div className="chat-main">
