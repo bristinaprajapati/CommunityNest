@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
@@ -43,6 +42,12 @@ const Chat = () => {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   // --- useEffect Hooks ---
   const { unreadCounts, setUnreadCounts, setTotalUnread } = useChat();
+
+  useEffect(() => {
+    // Clear seen messages when conversation changes
+    seenMessageIds.current = new Set();
+  }, [selectedUser?._id, selectedGroup?._id]);
+  
   // Initial data loading
   useEffect(() => {
     const fetchData = async () => {
@@ -191,16 +196,26 @@ const Chat = () => {
   
   
  // Replace your onGroupMessage function with this:
-const onGroupMessage = (data) => {
+ const onGroupMessage = (data) => {
   const { message, groupId } = data;
   
-  // Don't add messages from the current user (those come from the API response)
-  if (message && message.sender && message.sender._id === currentUserId) {
+  // Don't process messages from current user
+  if (message.sender?._id === currentUserId) {
     return;
   }
-  
-  if (selectedGroup && selectedGroup._id === groupId) {
-    // Add deduplication by checking if message already exists
+
+  // Skip if we've already seen this message
+  if (message._id && seenMessageIds.current.has(message._id)) {
+    return;
+  }
+
+  // Mark message as seen if we're viewing this group
+  if (message._id && selectedGroup?._id === groupId) {
+    seenMessageIds.current.add(message._id);
+  }
+
+  // Update messages if viewing this group
+  if (selectedGroup?._id === groupId) {
     setMessages(prev => {
       // Don't add if message with same ID already exists
       if (prev.some(m => m._id === message._id)) {
@@ -210,18 +225,22 @@ const onGroupMessage = (data) => {
     });
   }
   
+  // Update groups list with new message
   setGroups(prev => prev.map(g => 
     g._id === groupId ? { ...g, lastMessage: message } : g
   ));
   
+  // Increment unread count if not viewing this group
   if (!selectedGroup || selectedGroup._id !== groupId) {
     setUnreadCounts(prev => ({
       ...prev,
       [groupId]: (prev[groupId] || 0) + 1
     }));
+    
+    // Update total unread count in context
+    setTotalUnread(prev => prev + 1);
   }
 };
-
   // NEW: Add listener for unread count updates from server
   const onUnreadCountUpdate = (data) => {
     if (data.totalUnread !== undefined) {
@@ -320,16 +339,25 @@ const onGroupMessage = (data) => {
  const markMessagesAsRead = async (conversationId, type) => {
   try {
     const token = localStorage.getItem("token");
+    let endpoint = "";
+    let body = {};
+
+    if (type === "private") {
+      endpoint = `http://localhost:5001/api/chat/mark-as-read`;
+      body = { conversationId, type };
+    } else {
+      endpoint = `http://localhost:5001/api/group/${conversationId}/mark-read`;
+    }
+
     await axios.post(
-      `http://localhost:5001/api/chat/mark-as-read`,
-      { conversationId, type },
+      endpoint,
+      body,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
     // Update local unread counts
     setUnreadCounts(prev => {
       const newCounts = {...prev};
-      const count = newCounts[conversationId] || 0;
       delete newCounts[conversationId];
       return newCounts;
     });
@@ -547,18 +575,20 @@ const handleSendGroupMessage = async (e) => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
   
-      // Mark messages as read
-      await axios.post(
-        `http://localhost:5001/api/group/${group._id}/mark-read`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Mark messages as read - both via API and socket
+      await markMessagesAsRead(group._id, "group");
   
       // Fetch messages
       const response = await axios.get(
         `http://localhost:5001/api/group/${group._id}/messages`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      // Mark fetched messages as seen
+      response.data.forEach(msg => {
+        if (msg._id) seenMessageIds.current.add(msg._id);
+      });
+  
       setMessages(response.data);
     } catch (err) {
       console.error("Error selecting group:", err);

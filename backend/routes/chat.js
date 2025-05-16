@@ -283,12 +283,14 @@ router.get('/users-for-group', authenticate, async (req, res) => {
     }
   });
 // Updated /unread-counts route
+// In your chat routes (chat.js)
+
 router.get('/unread-counts', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Get unread private messages
-    const privateMessages = await Message.aggregate([
+    // Private messages aggregation
+    const privateCounts = await Message.aggregate([
       {
         $match: {
           recipient: mongoose.Types.ObjectId(userId),
@@ -304,20 +306,15 @@ router.get('/unread-counts', authenticate, async (req, res) => {
       }
     ]);
 
-    // Get unread group messages
+    // Group messages aggregation - updated to match private messages logic
     const userGroups = await Group.find({ members: userId }).select('_id');
-    const groupIds = userGroups.map(group => group._id);
-    
     const groupMessages = await Message.aggregate([
       {
         $match: {
-          group: { $in: groupIds },
+          group: { $in: userGroups.map(g => g._id) },
           sender: { $ne: mongoose.Types.ObjectId(userId) },
-          type: 'group',
-          $or: [
-            { read: { $exists: false } },
-            { read: false }
-          ]
+          read: false,
+          type: 'group'
         }
       },
       {
@@ -328,9 +325,9 @@ router.get('/unread-counts', authenticate, async (req, res) => {
       }
     ]);
 
-    // Combine counts
+    // Combine results
     const unreadCounts = {};
-    privateMessages.forEach(item => {
+    privateCounts.forEach(item => {
       unreadCounts[item._id.toString()] = item.count;
     });
     groupMessages.forEach(item => {
@@ -339,72 +336,13 @@ router.get('/unread-counts', authenticate, async (req, res) => {
 
     const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
-    // Emit socket event to update all connected clients
-    if (req.app.get('io')) {
-      req.app.get('io').to(`user_${userId}`).emit('unread-count-update', {
-        unreadCounts,
-        totalUnread
-      });
-    }
-
     res.json({ unreadCounts, totalUnread });
   } catch (error) {
-    console.error('Detailed error in /unread-counts:', {
-      message: error.message,
-      stack: error.stack,
-      userId: req.userId
-    });
-    res.status(500).json({ 
-      error: 'Failed to fetch unread counts',
-      details: error.message 
-    });
+    console.error('Error getting unread counts:', error);
+    res.status(500).json({ message: 'Error getting unread counts' });
   }
 });
 
-// // Add to your routes/chat.js
-// router.delete('/messages/:messageId', authenticate, async (req, res) => {
-//   try {
-//     const message = await Message.findOne({
-//       _id: req.params.messageId,
-//       $or: [
-//         { sender: req.userId },  // User can delete their own messages
-//         { 'group.admins': req.userId }  // Group admins can delete any group message
-//       ]
-//     });
-
-//     if (!message) {
-//       return res.status(404).json({ message: 'Message not found or unauthorized' });
-//     }
-
-//     // Soft delete (recommended)
-//     message.deleted = true;
-//     message.deletedAt = new Date();
-//     await message.save();
-
-//     // Or hard delete:
-//     // await message.remove();
-
-//     // Notify clients via socket
-//     if (req.app.get('io')) {
-//       const io = req.app.get('io');
-      
-//       if (message.type === 'private') {
-//         io.to(`user_${message.sender}`).to(`user_${message.recipient}`)
-//           .emit('message-deleted', { messageId: message._id });
-//       } else if (message.group) {
-//         io.to(`group_${message.group}`).emit('message-deleted', { 
-//           messageId: message._id,
-//           groupId: message.group
-//         });
-//       }
-//     }
-
-//     res.json({ success: true });
-//   } catch (error) {
-//     console.error('Error deleting message:', error);
-//     res.status(500).json({ message: 'Error deleting message' });
-//   }
-// });
 // Delete private conversation
 router.delete('/conversation/:userId', authenticate, async (req, res) => {
   try {
@@ -418,19 +356,6 @@ router.delete('/conversation/:userId', authenticate, async (req, res) => {
         { sender: userId, recipient: currentUserId, type: 'private' }
       ]
     });
-
-    // // Notify via socket if needed
-    // if (req.app.get('io')) {
-    //   const io = req.app.get('io');
-    //   io.to(`user_${currentUserId}`).emit('conversation-deleted', { 
-    //     conversationId: userId,
-    //     type: 'private'
-    //   });
-    //   io.to(`user_${userId}`).emit('conversation-deleted', { 
-    //     conversationId: currentUserId,
-    //     type: 'private'
-    //   });
-    // }
 
     res.status(200).json({ success: true });
   } catch (error) {

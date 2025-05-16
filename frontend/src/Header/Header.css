@@ -70,8 +70,8 @@
 
 .Message-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -11px;
+  right: -9px;
   background: red;
   color: white;
   font-size: 12px;

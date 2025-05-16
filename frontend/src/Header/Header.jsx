@@ -16,7 +16,7 @@ import "./Header.css";
 import axios from "axios";
 import EventPopup from "../components/EventPopup.jsx";
 import { io } from "socket.io-client";
-import { useChat } from '../contexts/ChatContext';
+import { useChat } from "../contexts/ChatContext";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -30,8 +30,9 @@ const Header = () => {
   const fileInputRef = useRef(null);
   const [showEventPopup, setShowEventPopup] = useState(false);
   const [currentEvent, setCurrentEvent] = useState(null);
+  const currentUserId = localStorage.getItem("userId");
+  // const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
-  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const socketRef = useRef(null);
   const { totalUnread } = useChat();
 
@@ -54,29 +55,47 @@ const Header = () => {
     console.log("Total unread messages:", totalUnread);
   }, [totalUnread]);
 
-  useEffect(() => {
-    // Initialize socket connection
-    const socket = (socketRef.current = io("http://localhost:5001", {
-      withCredentials: true,
-    }));
+ // Replace your socket useEffect with this:
+useEffect(() => {
+  const socket = socketRef.current = io("http://localhost:5001", {
+    withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+  });
 
-    socket.on("connect", () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        socket.emit("authenticate", token);
-      }
-    });
+  const onUnreadCountUpdate = (data) => {
+    if (data && data.totalUnread !== undefined) {
+      // This will update the context and trigger a re-render
+      console.log('Updating unread counts:', data);
+    }
+  };
 
-    socket.on("unread-count-update", () => {
-      // This will trigger a re-render with updated counts
-    });
+  socket.on('connect', () => {
+    console.log('Socket connected');
+    const token = localStorage.getItem("token");
+    if (token) {
+      socket.emit("authenticate", token);
+      // Request initial counts
+      socket.emit('get-unread-counts', currentUserId);
+    }
+  });
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
+  socket.on('unread-count-update', onUnreadCountUpdate);
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+
+  socket.on('error', (err) => {
+    console.error('Socket error:', err);
+  });
+
+  return () => {
+    socket.off('unread-count-update', onUnreadCountUpdate);
+    socket.disconnect();
+  };
+}, [currentUserId]);
 
   useEffect(() => {
     // In the fetchUserData function in Header.jsx
@@ -300,9 +319,13 @@ const Header = () => {
       <div className="Header-right">
         {/* Message Icon */}
         <div className="Message-icon-wrapper" onClick={() => navigate("/chat")}>
-  <FontAwesomeIcon icon={faComment} className="Icon" />
-  {totalUnread > 0 && <span className="Message-badge">{totalUnread}</span>}
-</div>
+          <FontAwesomeIcon icon={faComment} className="Icon" />
+          {totalUnread > 0 && (
+            <span className="Message-badge">
+              {totalUnread > 99 ? "99+" : totalUnread}
+            </span>
+          )}
+        </div>
 
         {/* Notification Icon */}
         <div className="Notification-container" ref={notificationRef}>

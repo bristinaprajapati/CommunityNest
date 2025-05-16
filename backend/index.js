@@ -309,7 +309,6 @@ socket.on('get-group-conversations', async () => {
 });
 
 
-// Handle messages-read event (when messages are marked as read)
 socket.on('messages-read', async ({ userId, conversationId, type }) => {
   try {
     console.log(`Marking messages as read for ${userId}, ${type} ${conversationId}`);
