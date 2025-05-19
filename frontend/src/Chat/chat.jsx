@@ -37,17 +37,11 @@ const Chat = () => {
   const currentUsername = localStorage.getItem("username")
   const currentUserProfileImage = localStorage.getItem("profileImage")
   const seenMessageIds = useRef(new Set());
-
+  const socketRef = useRef(null)
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   // --- useEffect Hooks ---
-  const { 
-    unreadCounts, 
-    setUnreadCounts, 
-    setTotalUnread,
-    socket: socketRef,
-    markAsRead
-  } = useChat();
+  const { unreadCounts, setUnreadCounts, setTotalUnread, activeConversation, setActiveConversation } = useChat();
 
   useEffect(() => {
     // Clear seen messages when conversation changes
@@ -62,7 +56,8 @@ const Chat = () => {
         await Promise.all([fetchUsers(), fetchGroups(), fetchConversationPartners()])
         // Simulate some online users for UI demonstration
         setOnlineUsers([
-        
+          // Add some random user IDs here that would be in your users array
+          // This is just for UI demonstration since we removed socket functionality
         ])
       } catch (err) {
         console.error("Error during initial data loading:", err)
@@ -91,7 +86,11 @@ const Chat = () => {
     }
   }, [searchTerm, users])
 
- 
+  // // Scroll to bottom of messages
+  // useEffect(() => {
+  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
+
   // Combined conversation list useEffect
   useEffect(() => {
     const combined = [
@@ -147,10 +146,20 @@ const Chat = () => {
     if (!messageData) return;
   
     if (messageData.type === "private") {
+      // Skip if the current user is the sender
+      if (messageData.sender._id === currentUserId) {
+        return;
+      }
+  
+      // Only proceed if current user is the recipient
+      if (messageData.recipient._id !== currentUserId) {
+        return;
+      }
+  
       const isCurrentConversation = 
-        (selectedUser && 
-         ((messageData.sender._id === selectedUser._id && messageData.recipient._id === currentUserId) || 
-          (messageData.sender._id === currentUserId && messageData.recipient._id === selectedUser._id)));
+        selectedUser && 
+        (messageData.sender._id === selectedUser._id || 
+         messageData.recipient._id === selectedUser._id);
   
       // Skip if we've already seen this message
       if (messageData._id && seenMessageIds.current.has(messageData._id)) {
@@ -164,7 +173,6 @@ const Chat = () => {
   
       if (isCurrentConversation) {
         setMessages(prev => {
-          // Check for duplicates by ID, tempId, or content+sender+timestamp
           const isDuplicate = prev.some(m => 
             (m._id && m._id === messageData._id) ||
             (m.tempId && messageData.tempId && m.tempId === messageData.tempId) ||
@@ -172,21 +180,19 @@ const Chat = () => {
              m.sender._id === messageData.sender._id &&
              Math.abs(new Date(m.timestamp) - new Date(messageData.timestamp)) < 1000)
           );
-          
           return isDuplicate ? prev : [...prev, messageData];
         });
       }
   
       // Update conversation partners
       setConversationPartners(prev => prev.map(p => 
-        p._id === (messageData.sender._id === currentUserId ? messageData.recipient._id : messageData.sender._id) 
+        p._id === messageData.sender._id 
           ? {...p, lastMessage: messageData} 
           : p
       ));
   
-      // Update unread counts if needed
-      if (messageData.recipient._id === currentUserId && 
-          (!selectedUser || selectedUser._id !== messageData.sender._id)) {
+      // Only update unread count if not viewing this conversation
+      if (!isCurrentConversation) {
         setUnreadCounts(prev => ({
           ...prev,
           [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1
@@ -195,53 +201,59 @@ const Chat = () => {
     }
   };
   
-  
- // Replace your onGroupMessage function with this:
- const onGroupMessage = (data) => {
-  const { message, groupId } = data;
-  
-  // Don't process messages from current user
-  if (message.sender?._id === currentUserId) {
-    return;
-  }
-
-  // Skip if we've already seen this message
-  if (message._id && seenMessageIds.current.has(message._id)) {
-    return;
-  }
-
-  // Mark message as seen if we're viewing this group
-  if (message._id && selectedGroup?._id === groupId) {
-    seenMessageIds.current.add(message._id);
-  }
-
-  // Update messages if viewing this group
-  if (selectedGroup?._id === groupId) {
-    setMessages(prev => {
-      // Don't add if message with same ID already exists
-      if (prev.some(m => m._id === message._id)) {
-        return prev;
-      }
-      return [...prev, message];
-    });
-  }
-  
-  // Update groups list with new message
-  setGroups(prev => prev.map(g => 
-    g._id === groupId ? { ...g, lastMessage: message } : g
-  ));
-  
-  // Increment unread count if not viewing this group
-  if (!selectedGroup || selectedGroup._id !== groupId) {
-    setUnreadCounts(prev => ({
-      ...prev,
-      [groupId]: (prev[groupId] || 0) + 1
-    }));
+  const onGroupMessage = (data) => {
+    const { message, groupId } = data;
     
-    // Update total unread count in context
-    setTotalUnread(prev => prev + 1);
-  }
-};
+    // Don't process messages from current user
+    if (message.sender?._id === currentUserId) {
+      return;
+    }
+  
+    // Find the group in state
+    const group = groups.find(g => g._id === groupId);
+    if (!group) return;
+  
+    // Check if current user is a member of this group
+    const isMember = group.members?.some(member => 
+      typeof member === 'object' ? member._id === currentUserId : member === currentUserId
+    );
+    
+    if (!isMember) return;
+  
+    // Skip if we've already seen this message
+    if (message._id && seenMessageIds.current.has(message._id)) {
+      return;
+    }
+  
+    // Mark message as seen if we're viewing this group
+    if (selectedGroup?._id === groupId) {
+      if (message._id) seenMessageIds.current.add(message._id);
+      
+      // Update messages if viewing this group
+      setMessages(prev => {
+        if (prev.some(m => m._id === message._id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+    }
+    
+    // Update groups list with new message
+    setGroups(prev => prev.map(g => 
+      g._id === groupId ? { ...g, lastMessage: message } : g
+    ));
+    
+    // Only increment unread count if:
+    // 1. Not viewing this group
+    // 2. Current user is a member
+    // 3. Message is not from current user
+    if ((!selectedGroup || selectedGroup._id !== groupId) && isMember) {
+      setUnreadCounts(prev => ({
+        ...prev,
+        [groupId]: (prev[groupId] || 0) + 1
+      }));
+    }
+  };
   // NEW: Add listener for unread count updates from server
   const onUnreadCountUpdate = (data) => {
     if (data.totalUnread !== undefined) {
@@ -350,27 +362,35 @@ const Chat = () => {
       endpoint = `http://localhost:5001/api/group/${conversationId}/mark-read`;
     }
 
-    await axios.post(
-      endpoint,
-      body,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    // Update local unread counts
+    // Update local state immediately for better UX
     setUnreadCounts(prev => {
       const newCounts = {...prev};
       delete newCounts[conversationId];
       return newCounts;
     });
 
+    await axios.post(
+      endpoint,
+      body,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
     // Emit socket event to update counts
-    socketRef.current.emit('messages-read', { 
-      userId: currentUserId,
-      conversationId,
-      type 
-    });
+    if (socketRef.current) {
+      socketRef.current.emit('messages-read', { 
+        userId: currentUserId,
+        conversationId,
+        type 
+      });
+    }
   } catch (err) {
     console.error("Error marking messages as read:", err);
+    
+    // Revert the unread count change if the API call fails
+    setUnreadCounts(prev => ({
+      ...prev,
+      [conversationId]: prev[conversationId] || 0
+    }));
   }
 };
 
@@ -515,6 +535,11 @@ const handleSendGroupMessage = async (e) => {
       setSelectedGroup(null);
       setSelectedUser(user);
       setError("");
+
+      setActiveConversation({
+        type: 'private',
+        id: user._id
+      });
   
       // Clear unread count for this user
       setUnreadCounts((prev) => {
@@ -551,6 +576,13 @@ const handleSendGroupMessage = async (e) => {
       setError("Failed to open chat");
     }
   };
+
+  const handleLeaveChat = () => {
+    setActiveConversation(null);
+    setSelectedUser(null);
+    setSelectedGroup(null);
+  };
+  
   
   // Scroll to bottom of messages
   useEffect(() => {
@@ -565,10 +597,14 @@ const handleSendGroupMessage = async (e) => {
       setSelectedGroup(group);
       setMessages([]);
       setError("");
-  
-      // Clear unread count
+      setActiveConversation({
+        type: 'group',
+        id: group._id
+      });
+      
+      // Clear unread count for this group
       setUnreadCounts(prev => {
-        const newCounts = { ...prev };
+        const newCounts = {...prev};
         delete newCounts[group._id];
         return newCounts;
       });

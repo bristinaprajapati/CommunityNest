@@ -9,7 +9,7 @@ export const ChatProvider = ({ children }) => {
   const [totalUnread, setTotalUnread] = useState(0);
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-
+  const [activeConversation, setActiveConversation] = useState(null);
   // Initialize socket connection
   useEffect(() => {
     const socket = io("http://localhost:5001", {
@@ -52,21 +52,40 @@ export const ChatProvider = ({ children }) => {
 
     const onPrivateMessage = (data) => {
       if (data.messageData && data.messageData.recipient._id === localStorage.getItem('userId')) {
-        // Update unread count for this conversation
-        setUnreadCounts(prev => ({
-          ...prev,
-          [data.messageData.sender._id]: (prev[data.messageData.sender._id] || 0) + 1
-        }));
+        // Only update if the current user is the recipient
+        if (data.messageData.sender._id !== localStorage.getItem('userId')) {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [data.messageData.sender._id]: (prev[data.messageData.sender._id] || 0) + 1
+          }));
+        }
       }
     };
 
     const onGroupMessage = (data) => {
       if (data.message && data.groupId) {
-        // Update unread count for this group
-        setUnreadCounts(prev => ({
-          ...prev,
-          [data.groupId]: (prev[data.groupId] || 0) + 1
-        }));
+        const currentUserId = localStorage.getItem('userId');
+        
+        // Skip if current user is the sender
+        if (data.message.sender._id === currentUserId) {
+          return;
+        }
+        
+        // Only update unread count if not currently viewing this group
+        setUnreadCounts(prev => {
+          // Check if we're viewing this group
+          const isViewingGroup = activeConversation?.type === 'group' && 
+                               activeConversation?.id === data.groupId;
+          
+          if (isViewingGroup) {
+            return prev;
+          }
+          
+          return {
+            ...prev,
+            [data.groupId]: (prev[data.groupId] || 0) + 1
+          };
+        });
       }
     };
 
@@ -117,7 +136,9 @@ export const ChatProvider = ({ children }) => {
       setTotalUnread,
       isConnected,
       markAsRead,
-      socket: socketRef.current
+      socket: socketRef.current,
+      activeConversation,
+      setActiveConversation
     }}>
       {children}
     </ChatContext.Provider>
