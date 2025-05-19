@@ -59,17 +59,17 @@ const DocumentRepositoryPage = () => {
     }
   }, [department, userId, userRole]);
 
-  const fetchDepartmentName = async (departmentId) => {
-    try {
-      const response = await axios.get(
-        `http://localhost:5001/api/department/getDepartment/${departmentId}`
-      );
-      return response.data.name;
-    } catch (error) {
-      console.error("Error fetching department name:", error);
-      return departmentId; // Fallback to ID if fetch fails
-    }
-  };
+  // const fetchDepartmentName = async (departmentId) => {
+  //   try {
+  //     const response = await axios.get(
+  //        `http://localhost:5001/api/department/${departmentId}`
+  //     );
+  //     return response.data.name;
+  //   } catch (error) {
+  //     console.error("Error fetching department name:", error);
+  //     return departmentId; // Fallback to ID if fetch fails
+  //   }
+  // };
   
   // Update your useEffect for department name
   useEffect(() => {
@@ -81,8 +81,8 @@ const DocumentRepositoryPage = () => {
       }
       
       // If not in state, fetch from API
-      const name = await fetchDepartmentName(department);
-      setDepartmentName(name);
+      // const name = await fetchDepartmentName(department);
+      // setDepartmentName(name);
     };
   
     if (department) {
@@ -163,26 +163,21 @@ const DocumentRepositoryPage = () => {
 
   const uploadFile = async () => {
     if (!selectedFile) return alert("Please select a file");
-
-    const allowedExtensions = ["pdf"];
-    const fileExtension = selectedFile.name.split(".").pop().toLowerCase();
-
-    if (!allowedExtensions.includes(fileExtension)) {
-      return alert("Only .pdf files are allowed");
-    }
-
+  
     const formData = new FormData();
     formData.append("file", selectedFile);
     formData.append("filename", selectedFile.name);
     formData.append("fileType", selectedFile.type);
-    formData.append("department", department);
+    formData.append("department", department); // department ID
+    formData.append("departmentName", departmentName); // using existing state
     formData.append("userId", userId);
-
+  
     try {
-      await axios.post("http://localhost:5001/api/file/upload", formData, {
+      setIsLoading(true);
+      const response = await axios.post("http://localhost:5001/api/file/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
+  
       const res = await axios.get(
         `${fileBackendUrl}/getFilesByDepartmentAndUser/${department}/${userId}`
       );
@@ -192,6 +187,8 @@ const DocumentRepositoryPage = () => {
     } catch (error) {
       console.error("Upload error:", error);
       alert("Failed to upload file");
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -3,6 +3,7 @@
   max-width: 600px;
   margin: 70px auto 0 550px;
   padding: 20px;
+  
 }
 
 .feed-header {
@@ -11,8 +12,10 @@
 }
 
 .feed-header h2 {
-  color: #333;
   font-size: 22px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-top: 20px;
 }
 
 /* Post Form Styles */

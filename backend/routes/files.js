@@ -64,20 +64,28 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     const newFile = new File({
       filename: req.file.originalname,
-      filePath: req.file.path,
+      filePath: req.file.filename,
       fileType: req.file.mimetype,
       department: req.body.department,
-      userId: ownerId,  // Use the determined owner ID
-      uploadedBy: req.body.userId  // Track who actually uploaded the file
+      userId: ownerId,
+      uploadedBy: req.body.userId
     });
 
     await newFile.save();
 
-   // Send notifications
-   const io = req.app.get('io');
-   await sendFileNotifications(io, newFile, req.body.userId);
-   
-   res.status(201).json({ success: true, file: newFile });
+    // Get the uploading user's info
+    const uploadingUser = await User.findById(req.body.userId);
+
+    // Send notifications using departmentName from request body
+    await sendFileNotifications(
+      req.app.get('io'),
+      newFile,
+      req.body.userId,
+      uploadingUser.username,
+      req.body.departmentName // Using from request
+    );
+
+    res.status(201).json({ success: true, file: newFile });
   } catch (error) {
     console.error("Upload error:", error);
     res.status(500).json({ error: "File upload failed" });
@@ -196,60 +204,77 @@ router.post('/extract-text-pdf', upload.single('file'), (req, res) => {
   });
 });
 
-const sendFileNotifications = async (io, file, userId) => {
-  try {
-    const sender = await User.findById(userId).populate('communityDetails.communityId');
-    if (!sender) return;
+// const sendFileNotifications = async (io, file, userId, username, departmentName) => {
+//   try {
+//     const user = await User.findById(userId).populate('communityDetails.communityId');
+//     if (!user) return;
 
-    let community;
-    let membersToNotify = [];
+//     let community;
+//     let recipients = [];
 
-    if (sender.status === "member") {
-      if (sender.communityDetails.length > 0) {
-        const communityId = sender.communityDetails[0].communityId;
-        community = await Community.findOne({ _id: communityId })
-          .populate('members', '_id');
+//     if (user.status === "member") {
+//       if (user.communityDetails.length > 0) {
+//         community = await Community.findById(user.communityDetails[0].communityId)
+//           .populate('admin')
+//           .populate('members');
         
-        if (community) {
-          membersToNotify = community.members
-            .filter(member => member._id.toString() !== userId.toString())
-            .map(member => member._id.toString());
-        }
-      }
-    } else if (sender.status === "community") {
-      community = await Community.findOne({ admin: userId })
-        .populate('members', '_id');
+//         if (community) {
+//           // Add admin
+//           recipients.push(community.admin._id.toString());
+          
+//           // Add other members (excluding the uploading user)
+//           community.members.forEach(member => {
+//             if (member._id.toString() !== userId.toString()) {
+//               recipients.push(member._id.toString());
+//             }
+//           });
+//         }
+//       }
+//     } else if (user.status === "community") {
+//       community = await Community.findOne({ admin: userId })
+//         .populate('members');
       
-      if (community) {
-        membersToNotify = community.members
-          .map(member => member._id.toString());
-      }
-    }
+//       if (community) {
+//         community.members.forEach(member => {
+//           recipients.push(member._id.toString());
+//         });
+//       }
+//     }
 
-    if (membersToNotify.length === 0) return;
+//     // Remove duplicates
+//     recipients = [...new Set(recipients)];
 
-    await Promise.all(membersToNotify.map(async memberId => {
-      const notification = new Notification({
-        recipient: memberId,
-        sender: userId,
-        message: `New file uploaded: ${file.filename}`,
-        type: 'file',
-        relatedEntity: file._id
-      });
+//     if (recipients.length === 0) return;
+
+//     // Create notification message
+//     const message = `New file "${file.filename}" uploaded in department ${departmentName} by ${username}`;
+    
+//     await Promise.all(recipients.map(async recipientId => {
+//       const notification = new Notification({
+//         recipient: recipientId,
+//         sender: userId,
+//         message: message,
+//         type: 'file',
+//         relatedEntity: file._id,
+//         read: false
+//       });
       
-      await notification.save();
-      io.to(`user_${memberId}`).emit('new-notification', {
-        ...notification.toObject(),
-        sender: {
-          _id: sender._id,
-          username: sender.username
-        }
-      });
-    }));
+//       await notification.save();
+      
+//       // Emit socket event to specific user's room
+//       io.to(`user_${recipientId}`).emit('new-notification', {
+//         ...notification.toObject(),
+//         sender: {
+//           _id: user._id,
+//           username: user.username,
+//           profileImage: user.profileImage
+//         }
+//       });
+//     }));
 
-  } catch (error) {
-    console.error('File notification error:', error);
-  }
-};
+//   } catch (error) {
+//     console.error('Error sending file notifications:', error);
+//   }
+// };
 
 module.exports = router;

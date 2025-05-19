@@ -18,13 +18,31 @@ router.get('/messages/:userId', authenticate, async (req, res) => {
     .sort({ timestamp: 1 })
     .populate('sender recipient', 'username profileImage');
 
+    // Mark messages as read
+    await Message.updateMany(
+      {
+        sender: req.params.userId,
+        recipient: req.userId,
+        read: false
+      },
+      { $set: { read: true } }
+    );
+
+    // Emit socket event to update unread counts
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      io.to(`user_${req.userId}`).emit('unread-count-update', {
+        conversationId: req.params.userId,
+        count: 0
+      });
+    }
+
     res.json(messages);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ message: 'Error fetching messages' });
   }
 });
-
 // Search for users
 router.get('/search', authenticate, async (req, res) => {
   try {
@@ -282,64 +300,106 @@ router.get('/users-for-group', authenticate, async (req, res) => {
       res.status(500).json({ message: 'Error marking messages as read' });
     }
   });
-// Updated /unread-counts route
-// In your chat routes (chat.js)
-
+// chat.js routes
 router.get('/unread-counts', authenticate, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Private messages aggregation
-    const privateCounts = await Message.aggregate([
-      {
-        $match: {
-          recipient: mongoose.Types.ObjectId(userId),
-          read: false,
-          type: 'private'
-        }
-      },
-      {
-        $group: {
-          _id: '$sender',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Group messages aggregation - updated to match private messages logic
+    // Get all groups the user is a member of
     const userGroups = await Group.find({ members: userId }).select('_id');
-    const groupMessages = await Message.aggregate([
+    const groupIds = userGroups.map(g => g._id);
+
+    // Use a single aggregation pipeline for both private and group messages
+    const results = await Message.aggregate([
       {
         $match: {
-          group: { $in: userGroups.map(g => g._id) },
-          sender: { $ne: mongoose.Types.ObjectId(userId) },
-          read: false,
-          type: 'group'
+          $or: [
+            // Private messages to the user that are unread
+            {
+              recipient: mongoose.Types.ObjectId(userId),
+              read: false,
+              type: 'private'
+            },
+            // Group messages in the user's groups that are unread and not sent by the user
+            {
+              group: { $in: groupIds },
+              sender: { $ne: mongoose.Types.ObjectId(userId) },
+              read: false,
+              type: 'group'
+            }
+          ]
         }
       },
       {
         $group: {
-          _id: '$group',
+          _id: {
+            $cond: [
+              { $eq: ['$type', 'private'] },
+              '$sender',
+              '$group'
+            ]
+          },
           count: { $sum: 1 }
         }
       }
     ]);
 
-    // Combine results
+    // Convert the results to the required format
     const unreadCounts = {};
-    privateCounts.forEach(item => {
-      unreadCounts[item._id.toString()] = item.count;
-    });
-    groupMessages.forEach(item => {
+    results.forEach(item => {
       unreadCounts[item._id.toString()] = item.count;
     });
 
     const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
-    res.json({ unreadCounts, totalUnread });
+    res.json({ 
+      success: true,
+      unreadCounts,
+      totalUnread 
+    });
   } catch (error) {
     console.error('Error getting unread counts:', error);
-    res.status(500).json({ message: 'Error getting unread counts' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error getting unread counts' 
+    });
+  }
+});
+
+router.get('/unread-count/:conversationId', authenticate, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.userId;
+
+    // First check if it's a group conversation
+    const isGroup = await Group.exists({ _id: conversationId, members: userId });
+
+    let count;
+    if (isGroup) {
+      count = await Message.countDocuments({
+        group: conversationId,
+        sender: { $ne: userId },
+        read: false
+      });
+    } else {
+      // Assume it's a private conversation
+      count = await Message.countDocuments({
+        sender: conversationId,
+        recipient: userId,
+        read: false
+      });
+    }
+
+    res.json({ 
+      success: true,
+      count 
+    });
+  } catch (error) {
+    console.error('Error getting conversation unread count:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error getting unread count' 
+    });
   }
 });
 

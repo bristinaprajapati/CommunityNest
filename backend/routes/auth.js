@@ -166,7 +166,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if the email belongs to an admin
-    const isAdmin = email === 'bristinaprajapati99@gmail.com'; 
+    const isAdmin = false;
 
     // Generate JWT token (use environment variable for secret key)
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '2h' });

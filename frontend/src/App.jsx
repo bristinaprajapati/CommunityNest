@@ -25,18 +25,13 @@ import AdminUserEvents from "./Events/event.jsx";
 import Modal from "./Department/Modal.jsx";
 import FileViewer from "./Department/FileViewer.jsx";
 import ScheduleMeetingForm from "./Meetings/meeting.jsx";
-import AdminDashboard from "./admin/AdminDashboard/AdminDashboard.jsx";
-import AdminMain from "./admin/AdminMain.jsx";
-import Members from "./admin/Admin_Members/Members.jsx";
-import Departments from "./admin/Admin_Departments/Department.jsx";
-import Events from "./admin/Admin_Events/Event.jsx";
-import Meetings from "./admin/Admin_Meetings/Meeting.jsx";
+
 import MembersPage from "./Member/member.jsx";
 import { NotificationProvider } from './contexts/NotificationContext'; // Updated import path
 import { AuthProvider } from './AuthContext';
 import Chat from './Chat/chat';
 import Feed from './feed/feed'; 
-import { ChatProvider} from './contexts/ChatContext';
+import { ChatProvider } from './contexts/ChatContext';
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState("Departments");
@@ -53,7 +48,7 @@ function App() {
 
   return (
     <AuthProvider>
-    <NotificationProvider> {/* Wrap entire app with NotificationProvider */}
+    <NotificationProvider> 
     <ChatProvider>
       <div className="App">
         {!hideHeaderRoutes.includes(location.pathname) && <Header />}
@@ -104,12 +99,11 @@ function App() {
           <Route path="/event/:eventId" element={<EventDetails />} />
           <Route path="/admin-user-meetings" element={<AdminUserMeetings />} />
           <Route path="/admin-user-events" element={<AdminUserEvents />} />
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
-          <Route path="/admin-main" element={<AdminMain />} />
-          <Route path="/Members" element={<Members />} />
-          <Route path="/departments" element={<Departments />} />
+
+  
+          {/* <Route path="/departments" element={<Departments />} />
           <Route path="/events" element={<Events />} />
-          <Route path="/meetings" element={<Meetings />} />
+          <Route path="/meetings" element={<Meetings />} /> */}
         </Routes>
       </div>
       </ChatProvider>

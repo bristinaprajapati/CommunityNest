@@ -37,11 +37,17 @@ const Chat = () => {
   const currentUsername = localStorage.getItem("username")
   const currentUserProfileImage = localStorage.getItem("profileImage")
   const seenMessageIds = useRef(new Set());
-  const socketRef = useRef(null)
+
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   // --- useEffect Hooks ---
-  const { unreadCounts, setUnreadCounts, setTotalUnread } = useChat();
+  const { 
+    unreadCounts, 
+    setUnreadCounts, 
+    setTotalUnread,
+    socket: socketRef,
+    markAsRead
+  } = useChat();
 
   useEffect(() => {
     // Clear seen messages when conversation changes
@@ -56,8 +62,7 @@ const Chat = () => {
         await Promise.all([fetchUsers(), fetchGroups(), fetchConversationPartners()])
         // Simulate some online users for UI demonstration
         setOnlineUsers([
-          // Add some random user IDs here that would be in your users array
-          // This is just for UI demonstration since we removed socket functionality
+        
         ])
       } catch (err) {
         console.error("Error during initial data loading:", err)
@@ -86,11 +91,7 @@ const Chat = () => {
     }
   }, [searchTerm, users])
 
-  // // Scroll to bottom of messages
-  // useEffect(() => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
-
+ 
   // Combined conversation list useEffect
   useEffect(() => {
     const combined = [

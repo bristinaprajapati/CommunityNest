@@ -296,6 +296,50 @@ router.post('/:groupId/mark-read', authenticate, async (req, res) => {
   }
 });
 
+// Add this new endpoint
+router.get('/user/unread-counts', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get all groups the user is in
+    const groups = await Group.find({ members: userId }).select('_id');
+
+    // Get unread counts for each group
+    const unreadCounts = await Message.aggregate([
+      {
+        $match: {
+          group: { $in: groups.map(g => g._id) },
+          sender: { $ne: mongoose.Types.ObjectId(userId) },
+          readBy: { $ne: mongoose.Types.ObjectId(userId) }
+        }
+      },
+      {
+        $group: {
+          _id: '$group',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert to object format
+    const counts = {};
+    unreadCounts.forEach(item => {
+      counts[item._id.toString()] = item.count;
+    });
+
+    res.json({ 
+      success: true,
+      unreadCounts: counts 
+    });
+  } catch (error) {
+    console.error('Error getting group unread counts:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error getting unread counts' 
+    });
+  }
+});
+
 // Get unread count for a group
 router.get('/:groupId/unread-count', authenticate, async (req, res) => {
   try {
