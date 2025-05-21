@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./dashboard.css";
 import Sidebar from "../Sidebar/sidebar";
+import Header from "../Header/Header";
 import { useNotifications } from "../contexts/NotificationContext";
 import { FaTimes } from "react-icons/fa"; // for the close icon
 import {
@@ -30,6 +31,7 @@ const Dashboard = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -163,6 +165,9 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <Sidebar />
+      <Header setIsSidebarOpen={setIsSidebarOpen} />
+<Sidebar isOpen={isSidebarOpen} />
+
       <div className="dashboard-content">
         <div className="dashboard-header">
           <h1 className="dashboard-title">Dashboard</h1>

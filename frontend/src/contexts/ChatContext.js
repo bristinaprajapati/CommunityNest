@@ -1,6 +1,5 @@
-// ChatContext.js
-import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
-import { io } from 'socket.io-client';
+import { createContext, useState, useContext, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
 
 const ChatContext = createContext();
 
@@ -10,6 +9,7 @@ export const ChatProvider = ({ children }) => {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [activeConversation, setActiveConversation] = useState(null);
+
   // Initialize socket connection
   useEffect(() => {
     const socket = io("http://localhost:5001", {
@@ -23,11 +23,10 @@ export const ChatProvider = ({ children }) => {
 
     const onConnect = () => {
       setIsConnected(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (token) {
-        socket.emit('authenticate', token);
-        // Request initial unread counts
-        socket.emit('get-unread-counts');
+        socket.emit("authenticate", token);
+        socket.emit("get-unread-counts");
       }
     };
 
@@ -35,77 +34,88 @@ export const ChatProvider = ({ children }) => {
       setIsConnected(false);
     };
 
-    const onUnreadCountUpdate = (data) => {
-      if (data.chatId && data.count !== undefined) {
-        setUnreadCounts(prev => ({
-          ...prev,
-          [data.chatId]: data.count
-        }));
-      }
-    };
-
     const onTotalUnreadUpdate = (data) => {
       if (data.total !== undefined) {
         setTotalUnread(data.total);
       }
     };
+// ChatContext.js
+const onPrivateMessage = (data) => {
+  if (!data.messageData) return;
+  
+  const currentUserId = localStorage.getItem("userId");
+  const { sender, recipient } = data.messageData;
 
-    const onPrivateMessage = (data) => {
-      if (data.messageData && data.messageData.recipient._id === localStorage.getItem('userId')) {
-        // Only update if the current user is the recipient
-        if (data.messageData.sender._id !== localStorage.getItem('userId')) {
-          setUnreadCounts(prev => ({
-            ...prev,
-            [data.messageData.sender._id]: (prev[data.messageData.sender._id] || 0) + 1
-          }));
-        }
-      }
+  // Skip if not for current user or sent by current user
+  if (recipient._id !== currentUserId || sender._id === currentUserId) return;
+
+  // Skip if viewing this conversation
+  if (activeConversation?.type === "private" && 
+      activeConversation?.id === sender._id) {
+    return;
+  }
+
+  // Update count only if not already incremented
+  setUnreadCounts(prev => {
+    // Check if we've already processed this message (by ID or timestamp)
+    const isDuplicate = data.messageData._id && 
+      prev[`processed_${data.messageData._id}`] === true;
+    
+    if (isDuplicate) return prev;
+
+    return {
+      ...prev,
+      [sender._id]: (prev[sender._id] || 0) + 1,
+      [`processed_${data.messageData._id}`]: true // Mark as processed
     };
+  });
+};
 
-    const onGroupMessage = (data) => {
-      if (data.message && data.groupId) {
-        const currentUserId = localStorage.getItem('userId');
-        
-        // Skip if current user is the sender
-        if (data.message.sender._id === currentUserId) {
-          return;
-        }
-        
-        // Only update unread count if not currently viewing this group
-        setUnreadCounts(prev => {
-          // Check if we're viewing this group
-          const isViewingGroup = activeConversation?.type === 'group' && 
-                               activeConversation?.id === data.groupId;
-          
-          if (isViewingGroup) {
-            return prev;
-          }
-          
-          return {
-            ...prev,
-            [data.groupId]: (prev[data.groupId] || 0) + 1
-          };
-        });
-      }
+const onGroupMessage = (data) => {
+  if (!data.message || !data.groupId) return;
+
+  const currentUserId = localStorage.getItem("userId");
+
+  // Skip if sent by current user
+  if (data.message.sender._id === currentUserId) return;
+
+  // Skip if viewing this group
+  if (activeConversation?.type === "group" && 
+      activeConversation?.id === data.groupId) {
+    return;
+  }
+
+  // Update count only if not already incremented
+  setUnreadCounts(prev => {
+    // Check if we've already processed this message
+    const isDuplicate = data.message._id && 
+      prev[`processed_${data.message._id}`] === true;
+    
+    if (isDuplicate) return prev;
+
+    return {
+      ...prev,
+      [data.groupId]: (prev[data.groupId] || 0) + 1,
+      [`processed_${data.message._id}`]: true // Mark as processed
     };
+  });
+};
 
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('unread-count-update', onUnreadCountUpdate);
-    socket.on('total-unread-update', onTotalUnreadUpdate);
-    socket.on('private-message', onPrivateMessage);
-    socket.on('group-message', onGroupMessage);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("total-unread-update", onTotalUnreadUpdate);
+    socket.on("private-message", onPrivateMessage);
+    socket.on("group-message", onGroupMessage);
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('unread-count-update', onUnreadCountUpdate);
-      socket.off('total-unread-update', onTotalUnreadUpdate);
-      socket.off('private-message', onPrivateMessage);
-      socket.off('group-message', onGroupMessage);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("total-unread-update", onTotalUnreadUpdate);
+      socket.off("private-message", onPrivateMessage);
+      socket.off("group-message", onGroupMessage);
       socket.disconnect();
     };
-  }, []);
+  }, [activeConversation]);
 
   // Calculate total unread whenever counts change
   useEffect(() => {
@@ -114,32 +124,41 @@ export const ChatProvider = ({ children }) => {
   }, [unreadCounts]);
 
   const markAsRead = (conversationId) => {
-    setUnreadCounts(prev => {
-      const newCounts = {...prev};
+    setUnreadCounts((prev) => {
+      const newCounts = { ...prev };
       delete newCounts[conversationId];
       return newCounts;
     });
-    
+
     if (socketRef.current) {
-      socketRef.current.emit('mark-as-read', {
+      socketRef.current.emit("mark-as-read", {
         conversationId,
-        userId: localStorage.getItem('userId')
+        userId: localStorage.getItem("userId"),
       });
     }
   };
 
+  // Clear unread counts when conversation becomes active
+  useEffect(() => {
+    if (activeConversation) {
+      markAsRead(activeConversation.id);
+    }
+  }, [activeConversation]);
+
   return (
-    <ChatContext.Provider value={{ 
-      unreadCounts, 
-      setUnreadCounts, 
-      totalUnread, 
-      setTotalUnread,
-      isConnected,
-      markAsRead,
-      socket: socketRef.current,
-      activeConversation,
-      setActiveConversation
-    }}>
+    <ChatContext.Provider
+      value={{
+        unreadCounts,
+        setUnreadCounts,
+        totalUnread,
+        setTotalUnread,
+        isConnected,
+        markAsRead,
+        socket: socketRef.current,
+        activeConversation,
+        setActiveConversation,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );

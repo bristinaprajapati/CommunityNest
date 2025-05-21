@@ -17,6 +17,7 @@ import EventPopup from "../components/EventPopup.jsx";
 import { io } from "socket.io-client";
 import { useChat } from "../contexts/ChatContext";
 import "../Chat/chat.jsx";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const Header = () => {
   const [currentEvent, setCurrentEvent] = useState(null);
   const currentUserId = localStorage.getItem("userId");
   // const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 
   const { totalUnread } = useChat();
