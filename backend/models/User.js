@@ -26,6 +26,9 @@ const UserSchema = new mongoose.Schema({
     ref: "Community", 
     default: null, 
   }, 
+
+  
 });
+
 
 module.exports = mongoose.model("User", UserSchema);

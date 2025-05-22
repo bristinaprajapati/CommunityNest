@@ -7,18 +7,17 @@ const User = require('../models/User');
 const Message = require('../models/Message');
 const mongoose = require('mongoose');
 
-// Create a new group
+//create group
+// In your backend group routes
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, description, members } = req.body;
+    const { name, members } = req.body;
     
-    // Validate members
-    const memberIds = [...new Set([...members, req.userId])]; // Include creator and remove duplicates
+    // Include the creator in the members
+    const memberIds = [...new Set([...members, req.userId])];
     
-    // Create group
     const group = new Group({
       name,
-      description,
       creator: req.userId,
       members: memberIds,
       admins: [req.userId]
@@ -26,9 +25,18 @@ router.post('/', authenticate, async (req, res) => {
 
     await group.save();
     
-    // Populate the group data
+    // Populate all necessary fields before returning
     const populatedGroup = await Group.findById(group._id)
-      .populate('creator members admins', 'username email profileImage');
+      .populate('creator members admins', 'username profileImage')
+      .lean();
+
+    // Emit socket event to all members
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      memberIds.forEach(memberId => {
+        io.to(`user_${memberId}`).emit('group-created', populatedGroup);
+      });
+    }
 
     res.status(201).json(populatedGroup);
   } catch (error) {
@@ -36,7 +44,6 @@ router.post('/', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error creating group' });
   }
 });
-
 // Get all groups for current user
 
 router.get('/', authenticate, async (req, res) => {

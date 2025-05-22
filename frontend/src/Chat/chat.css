@@ -140,19 +140,22 @@
     background-color: #e0e0e0;
   }
   .chat-header h3 {
-    margin-top: 30px;
+    margin-top: 16px;
     margin-bottom: 5px;
     font-size: 16px;
     color: #2c3e50;
     text-align: left;
-    margin-left: 6px;
+    /* margin-left: 6px; */
+
+  
+    
   }
   .chat-header p {
     margin-top: -2px;
     font-size: 12px;
     color: #7f8c8d;
     text-align: left;
-    margin-left: 6px;
+    /* margin-left: 6px; */
   }
   .chat-partner {
     display: flex;
@@ -412,9 +415,9 @@
   
   .search-results-dropdown {
     position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
+    left: 25px;
+    right: -20px;
+    margin-top: 5px;
     background: white;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -429,7 +432,7 @@
     display: flex;
     align-items: center;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #d8d6d6;
   }
   
   .search-result-item:hover {
@@ -1035,6 +1038,21 @@
   .member-item .user-info h4 {
     margin: 0;
     font-size: 0.9em;
+    
+  }
+  .user-info h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 580;
+    text-align: left;
+    color: #363535;
+  }
+  .user-info p {
+    margin: 2px 0 0;
+    font-size: 0.8em;
+    color: #666;
+    text-align: left;
+   
   }
   
   .member-item .user-info p {
@@ -1444,11 +1462,12 @@
 .message-preview {
   margin: 0;
   font-size: 13px;
-  color: #bdc3c7;
+  color: #c7c0bd;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  text-align: left;
 }
 
 .unread-count {

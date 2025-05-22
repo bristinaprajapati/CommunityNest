@@ -69,28 +69,26 @@ export const ChatProvider = ({ children }) => {
 
     const onGroupMessage = (data) => {
       if (!data.message || !data.groupId) return;
-
+    
       const currentUserId = localStorage.getItem("userId");
-      const { _id } = data.message;
-
-      // Skip if sent by current user
-      if (data.message.sender._id === currentUserId) return;
-
-      // Skip if viewing this group
-      if (activeConversation?.type === "group" && 
-          activeConversation?.id === data.groupId) {
-        return;
-      }
-
+      const { _id, sender } = data.message;
+    
       // Skip if already processed this message
       if (_id && processedMessages.current.has(_id)) return;
-
-      setUnreadCounts(prev => ({
-        ...prev,
-        [data.groupId]: (prev[data.groupId] || 0) + 1
-      }));
-
+    
+      // Always process the message to update lastMessage, even if from current user
       if (_id) processedMessages.current.add(_id);
+    
+      // Only update unread counts if not from current user AND not viewing this group
+      if (sender._id !== currentUserId && 
+          !(activeConversation?.type === "group" && 
+            activeConversation?.id === data.groupId)) {
+        // Always set at least 1 for the first message
+        setUnreadCounts(prev => ({
+          ...prev,
+          [data.groupId]: (prev[data.groupId] || 0) + 1
+        }));
+      }
     };
 
     socket.on("connect", onConnect);

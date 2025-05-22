@@ -234,19 +234,26 @@ const Chat = () => {
     
     const onGroupMessage = (data) => {
       const { message, groupId } = data;
-    
-      // Don't process messages from current user
-      if (message.sender?._id === currentUserId) {
+      
+      // Skip if we've already seen this message to prevent duplicates
+      if (message._id && seenMessageIds.current.has(message._id)) {
         return;
       }
     
-      const isCurrentConversation =
-        activeConversation?.type === "group" &&
-        activeConversation?.id === groupId;
-    
-      // Find the group in state
-      const group = groups.find((g) => g._id === groupId);
-      if (!group) return;
+      // Check if the group exists in our state
+      let group = groups.find((g) => g._id === groupId);
+      
+      // If group doesn't exist in state but we received a message for it,
+      // we should fetch updated groups to ensure we have the latest data
+      if (!group) {
+        // Don't just fetch groups and exit, store the message for processing after fetch
+        fetchGroups().then(() => {
+          // Process the same message again after groups are fetched
+          // Use setTimeout to ensure this runs after state updates
+          setTimeout(() => onGroupMessage(data), 100);
+        });
+        return; // Exit for now, but we'll process this message after groups are fetched
+      }
     
       // Check if current user is a member of this group
       const isMember = group.members?.some((member) =>
@@ -257,16 +264,32 @@ const Chat = () => {
     
       if (!isMember) return;
     
-      // Skip if we've already seen this message
-      if (message._id && seenMessageIds.current.has(message._id)) {
+      // Don't add duplicate messages from current user (we already have optimistic updates)
+      if (message.sender._id === currentUserId) {
+        // Just update the confirmed message ID if needed
+        if (message._id) {
+          setMessages(prev => 
+            prev.map(m => 
+              (m.content === message.content && 
+               m.sender._id === currentUserId && 
+               Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) < 5000)
+                ? { ...m, _id: message._id }
+                : m
+            )
+          );
+        }
         return;
       }
     
       // Mark message as seen if we're viewing this group
-      if (isCurrentConversation) {
-        if (message._id) seenMessageIds.current.add(message._id);
+      if (message._id) seenMessageIds.current.add(message._id);
+      
+      const isCurrentConversation =
+        activeConversation?.type === "group" &&
+        activeConversation?.id === groupId;
     
-        // Update messages if viewing this group
+      // Update messages if viewing this group
+      if (isCurrentConversation) {
         setMessages((prev) => {
           if (prev.some((m) => m._id === message._id)) {
             return prev;
@@ -274,21 +297,42 @@ const Chat = () => {
           return [...prev, message];
         });
       } else {
-        // Only increment unread count if it's not the active conversation
-        // setUnreadCounts((prev) => ({
-        //   ...prev,
-        //   [groupId]: (prev[groupId] || 0) + 1,
-        // }));
+        // Re-enable unread count update for group messages
+        setUnreadCounts(prev => ({
+          ...prev,
+          [groupId]: (prev[groupId] || 0) + 1
+        }));
+        
+        // Also update total unread count for notification badge
+        setTotalUnread(prev => prev + 1);
       }
     
-      // Update groups list with new message
+      // Always update groups list with new message for sidebar display
       setGroups((prev) =>
         prev.map((g) =>
-          g._id === groupId ? { ...g, lastMessage: message } : g
+          g._id === groupId ? { 
+            ...g, 
+            lastMessage: message,
+            // Add this to ensure the unread status is reflected in the UI
+            hasUnread: !isCurrentConversation
+          } : g
         )
       );
     };
 
+    const onGroupCreated = (group) => {
+      setGroups(prev => {
+        // Check if group already exists to avoid duplicates
+        if (prev.some(g => g._id === group._id)) return prev;
+        return [group, ...prev];
+      });
+      
+      // If current user is the creator, automatically open the group chat
+      if (group.creator._id === currentUserId) {
+        handleSelectGroup(group);
+      }
+    };
+    
 
     // Set up event listeners
     socket.on("connect", onConnect);
@@ -296,6 +340,7 @@ const Chat = () => {
     // socket.on("unread-count-update", onUnreadCountUpdate);
     socket.on("private-message-sent", onPrivateMessageSent);
     socket.on("private-message", onPrivateMessage);
+    socket.on('group-created', onGroupCreated);
 
     return () => {
       // Clean up listeners
@@ -304,6 +349,7 @@ const Chat = () => {
       // socket.off("unread-count-update", onUnreadCountUpdate);
       socket.off("private-message-sent", onPrivateMessageSent);
       socket.off("private-message", onPrivateMessage);
+      socket.off('group-created', onGroupCreated);
 
       socket.disconnect();
       socketRef.current = null;
@@ -317,19 +363,43 @@ const Chat = () => {
   ]);
 
   // Fetch groups for the current user
-  const fetchGroups = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5001/api/group", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { populate: "creator members admins lastMessage.sender" },
-      });
-      setGroups(response.data);
-    } catch (err) {
-      console.error("Failed to fetch groups:", err);
-      setError("Could not load groups");
+ // In the fetchGroups function
+const fetchGroups = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get("http://localhost:5001/api/group", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { populate: "creator members admins lastMessage.sender" },
+    });
+    
+    setGroups(response.data);
+    
+    // Initialize group unread counts
+    const initialUnreadCounts = {};
+    for (const group of response.data) {
+      // Get unread count for each group
+      try {
+        const unreadResponse = await axios.get(
+          `http://localhost:5001/api/group/${group._id}/unread-count`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (unreadResponse.data.count > 0) {
+          initialUnreadCounts[group._id] = unreadResponse.data.count;
+        }
+      } catch (err) {
+        console.error(`Failed to fetch unread count for group ${group._id}:`, err);
+      }
     }
-  };
+    
+    // Update unread counts state
+    setUnreadCounts(prev => ({ ...prev, ...initialUnreadCounts }));
+    
+  } catch (err) {
+    console.error("Failed to fetch groups:", err);
+    setError("Could not load groups");
+  }
+};
 
   // Fetch conversation partners with unread counts
   const fetchConversationPartners = async () => {
@@ -491,17 +561,17 @@ const Chat = () => {
     }
   };
 
-  // Replace your handleSendGroupMessage function with this:
   const handleSendGroupMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedGroup) return;
-
+  
     const groupId = selectedGroup._id;
-    const tempId = Date.now().toString();
-
+    const tempId = `temp-${Date.now()}`;
+  
     // Optimistic UI update
     const optimisticMessage = {
       _id: tempId,
+      tempId,
       sender: {
         _id: currentUserId,
         username: currentUsername,
@@ -515,46 +585,58 @@ const Chat = () => {
       },
       type: "group",
     };
-
+  
     setMessages((prev) => [...prev, optimisticMessage]);
+    
+    // Update groups list with optimistic message for sidebar
+    setGroups((prev) =>
+      prev.map((g) =>
+        g._id === groupId
+          ? {
+              ...g,
+              lastMessage: {
+                _id: tempId,
+                content: newMessage,
+                timestamp: new Date().toISOString(),
+                sender: {
+                  _id: currentUserId,
+                  username: currentUsername,
+                },
+                group: {
+                  _id: groupId,
+                  name: selectedGroup.name,
+                },
+              },
+            }
+          : g
+      )
+    );
+  
     setNewMessage("");
-
+  
     try {
       const token = localStorage.getItem("token");
-
-      // Option 1: Use Socket.IO only and skip the API call
       socketRef.current.emit("group-message", {
         groupId,
         content: newMessage,
         senderId: currentUserId,
         token,
-        tempId, // Include tempId for tracking
+        tempId,
       });
-
-      // Update groups list with optimistic message
+    } catch (err) {
+      console.error("Error sending group message:", err);
+      // Rollback optimistic updates
+      setMessages((prev) => prev.filter((m) => m.tempId !== tempId));
       setGroups((prev) =>
         prev.map((g) =>
           g._id === groupId
             ? {
                 ...g,
-                lastMessage: {
-                  content: newMessage,
-                  timestamp: new Date().toISOString(),
-                  sender: {
-                    _id: currentUserId,
-                    username: currentUsername,
-                  },
-                },
+                lastMessage: g.lastMessage?._id === tempId ? null : g.lastMessage,
               }
             : g
         )
       );
-
-      // No need for API call since socket handles it
-    } catch (err) {
-      console.error("Error sending group message:", err);
-      // Remove failed message
-      setMessages((prev) => prev.filter((m) => m._id !== tempId));
       setError(err.response?.data?.message || "Failed to send message");
     }
   };
@@ -642,51 +724,7 @@ const Chat = () => {
     }
   }, [messages]);
 
-  const handleSelectGroup = async (group) => {
-    try {
-      // Set active conversation first
-      const newActiveConversation = {
-        type: "group",
-        id: group._id,
-      };
-      setActiveConversation(newActiveConversation);
-
-      // Then reset other state
-      setSelectedUser(null);
-      setSelectedGroup(group);
-      setMessages([]);
-      setError("");
-
-      // Clear unread count for this group
-      setUnreadCounts((prev) => {
-        const newCounts = { ...prev };
-        delete newCounts[group._id];
-        return newCounts;
-      });
-
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found");
-
-      // Mark messages as read
-      await markMessagesAsRead(group._id, "group");
-
-      // Fetch messages
-      const response = await axios.get(
-        `http://localhost:5001/api/group/${group._id}/messages`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Mark fetched messages as seen
-      response.data.forEach((msg) => {
-        if (msg._id) seenMessageIds.current.add(msg._id);
-      });
-
-      setMessages(response.data);
-    } catch (err) {
-      console.error("Error selecting group:", err);
-      setError("Failed to open group chat");
-    }
-  };
+ 
 
   // --- Group Management Functions ---
 
@@ -695,7 +733,7 @@ const Chat = () => {
       alert("Group name and at least one member are required");
       return;
     }
-
+  
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
@@ -706,14 +744,77 @@ const Chat = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      setGroups((prev) => [response.data, ...prev]);
+  
+      // // Update state and close modal
+      // setGroups((prev) => [response.data, ...prev]);
       setShowGroupModal(false);
       setGroupName("");
       setSelectedUsersForGroup([]);
+      
+      // Create a modified group object with isNewGroup flag
+      const newGroup = { ...response.data, isNewGroup: true };
+      
+      // Immediately open the new group chat with the flag
+      handleSelectGroup(newGroup);
+
     } catch (err) {
       console.error("Error creating group:", err);
       alert("Failed to create group");
+    }
+  };
+  
+  const handleSelectGroup = async (group) => {
+    try {
+      // Set active conversation first
+      const newActiveConversation = {
+        type: "group",
+        id: group._id,
+      };
+      setActiveConversation(newActiveConversation);
+  
+      // Then reset other state
+      setSelectedUser(null);
+      setSelectedGroup(group);
+      setMessages([]);
+      setError("");
+  
+      // Clear unread count for this group
+      setUnreadCounts((prev) => {
+        const newCounts = { ...prev };
+        delete newCounts[group._id];
+        return newCounts;
+      });
+  
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+  
+      // Mark as read immediately
+      await markMessagesAsRead(group._id, "group");
+  
+      // Skip message fetching for newly created groups without messages
+      if (group.isNewGroup && !group.lastMessage) {
+        return;
+      }
+  
+      // Fetch messages for existing groups
+      const response = await axios.get(
+        `http://localhost:5001/api/group/${group._id}/messages`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
+      // Mark fetched messages as seen
+      response.data.forEach((msg) => {
+        if (msg._id) seenMessageIds.current.add(msg._id);
+      });
+  
+      setMessages(response.data);
+      
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
+    } catch (err) {
+      console.error("Error selecting group:", err);
+      setError("Failed to open group chat");
     }
   };
 
