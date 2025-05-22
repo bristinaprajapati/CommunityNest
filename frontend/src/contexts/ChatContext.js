@@ -9,6 +9,7 @@ export const ChatProvider = ({ children }) => {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [activeConversation, setActiveConversation] = useState(null);
+  const processedMessages = useRef(new Set()); // Track processed message IDs
 
   // Initialize socket connection
   useEffect(() => {
@@ -39,67 +40,58 @@ export const ChatProvider = ({ children }) => {
         setTotalUnread(data.total);
       }
     };
-// ChatContext.js
-const onPrivateMessage = (data) => {
-  if (!data.messageData) return;
-  
-  const currentUserId = localStorage.getItem("userId");
-  const { sender, recipient } = data.messageData;
 
-  // Skip if not for current user or sent by current user
-  if (recipient._id !== currentUserId || sender._id === currentUserId) return;
+    const onPrivateMessage = (data) => {
+      if (!data.messageData) return;
+      
+      const currentUserId = localStorage.getItem("userId");
+      const { sender, recipient, _id } = data.messageData;
 
-  // Skip if viewing this conversation
-  if (activeConversation?.type === "private" && 
-      activeConversation?.id === sender._id) {
-    return;
-  }
+      // Skip if not for current user or sent by current user
+      if (recipient._id !== currentUserId || sender._id === currentUserId) return;
 
-  // Update count only if not already incremented
-  setUnreadCounts(prev => {
-    // Check if we've already processed this message (by ID or timestamp)
-    const isDuplicate = data.messageData._id && 
-      prev[`processed_${data.messageData._id}`] === true;
-    
-    if (isDuplicate) return prev;
+      // Skip if viewing this conversation
+      if (activeConversation?.type === "private" && 
+          activeConversation?.id === sender._id) {
+        return;
+      }
 
-    return {
-      ...prev,
-      [sender._id]: (prev[sender._id] || 0) + 1,
-      [`processed_${data.messageData._id}`]: true // Mark as processed
+      // Skip if already processed this message
+      if (_id && processedMessages.current.has(_id)) return;
+
+      setUnreadCounts(prev => ({
+        ...prev,
+        [sender._id]: (prev[sender._id] || 0) + 1
+      }));
+
+      if (_id) processedMessages.current.add(_id);
     };
-  });
-};
 
-const onGroupMessage = (data) => {
-  if (!data.message || !data.groupId) return;
+    const onGroupMessage = (data) => {
+      if (!data.message || !data.groupId) return;
 
-  const currentUserId = localStorage.getItem("userId");
+      const currentUserId = localStorage.getItem("userId");
+      const { _id } = data.message;
 
-  // Skip if sent by current user
-  if (data.message.sender._id === currentUserId) return;
+      // Skip if sent by current user
+      if (data.message.sender._id === currentUserId) return;
 
-  // Skip if viewing this group
-  if (activeConversation?.type === "group" && 
-      activeConversation?.id === data.groupId) {
-    return;
-  }
+      // Skip if viewing this group
+      if (activeConversation?.type === "group" && 
+          activeConversation?.id === data.groupId) {
+        return;
+      }
 
-  // Update count only if not already incremented
-  setUnreadCounts(prev => {
-    // Check if we've already processed this message
-    const isDuplicate = data.message._id && 
-      prev[`processed_${data.message._id}`] === true;
-    
-    if (isDuplicate) return prev;
+      // Skip if already processed this message
+      if (_id && processedMessages.current.has(_id)) return;
 
-    return {
-      ...prev,
-      [data.groupId]: (prev[data.groupId] || 0) + 1,
-      [`processed_${data.message._id}`]: true // Mark as processed
+      setUnreadCounts(prev => ({
+        ...prev,
+        [data.groupId]: (prev[data.groupId] || 0) + 1
+      }));
+
+      if (_id) processedMessages.current.add(_id);
     };
-  });
-};
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
@@ -119,7 +111,10 @@ const onGroupMessage = (data) => {
 
   // Calculate total unread whenever counts change
   useEffect(() => {
-    const newTotal = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+    const newTotal = Object.values(unreadCounts).reduce(
+      (sum, count) => sum + (typeof count === 'number' ? count : 0), 
+      0
+    );
     setTotalUnread(newTotal);
   }, [unreadCounts]);
 

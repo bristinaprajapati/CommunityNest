@@ -193,64 +193,45 @@ const Chat = () => {
     
       if (messageData.type === "private") {
         // Skip if the current user is the sender
-        if (messageData.sender._id === currentUserId) {
-          return;
-        }
+        if (messageData.sender._id === currentUserId) return;
     
         // Only proceed if current user is the recipient
-        if (messageData.recipient._id !== currentUserId) {
-          return;
-        }
+        if (messageData.recipient._id !== currentUserId) return;
     
         const isCurrentConversation =
-          activeConversation?.type === "private" &&
+          activeConversation?.type === "private" && 
           activeConversation?.id === messageData.sender._id;
     
         // Skip if we've already seen this message
-        if (messageData._id && seenMessageIds.current.has(messageData._id)) {
-          return;
-        }
+        if (messageData._id && seenMessageIds.current.has(messageData._id)) return;
     
         // Mark this message as seen
-        if (messageData._id) {
-          seenMessageIds.current.add(messageData._id);
-        }
+        if (messageData._id) seenMessageIds.current.add(messageData._id);
     
         if (isCurrentConversation) {
-          // If it's the active conversation, add to messages but don't increment unread count
           setMessages((prev) => {
             const isDuplicate = prev.some(
-              (m) =>
-                (m._id && m._id === messageData._id) ||
-                (m.tempId &&
-                  messageData.tempId &&
-                  m.tempId === messageData.tempId) ||
-                (m.content === messageData.content &&
-                  m.sender._id === messageData.sender._id &&
-                  Math.abs(
-                    new Date(m.timestamp) - new Date(messageData.timestamp)
-                  ) < 1000)
+              m => (m._id && m._id === messageData._id) ||
+                   (m.tempId && m.tempId === messageData.tempId) ||
+                   (m.content === messageData.content && 
+                    m.sender._id === messageData.sender._id &&
+                    Math.abs(new Date(m.timestamp) - new Date(messageData.timestamp)) < 1000)
             );
             return isDuplicate ? prev : [...prev, messageData];
           });
-        } else {
-          // Only increment unread count if it's not the active conversation
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [messageData.sender._id]: (prev[messageData.sender._id] || 0) + 1,
-          }));
         }
     
-        // Update conversation partners
-        setConversationPartners((prev) =>
-          prev.map((p) =>
-            p._id === messageData.sender._id
-              ? { ...p, lastMessage: messageData }
+        // Update conversation partners (without touching unread counts)
+        setConversationPartners(prev =>
+          prev.map(p => 
+            p._id === messageData.sender._id 
+              ? { ...p, lastMessage: messageData } 
               : p
           )
         );
       }
     };
+    
     const onGroupMessage = (data) => {
       const { message, groupId } = data;
     
@@ -294,10 +275,10 @@ const Chat = () => {
         });
       } else {
         // Only increment unread count if it's not the active conversation
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [groupId]: (prev[groupId] || 0) + 1,
-        }));
+        // setUnreadCounts((prev) => ({
+        //   ...prev,
+        //   [groupId]: (prev[groupId] || 0) + 1,
+        // }));
       }
     
       // Update groups list with new message
