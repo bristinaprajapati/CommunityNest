@@ -180,69 +180,73 @@ const Chat = () => {
     const onPrivateMessageSent = (data) => {
       const { messageData } = data;
       if (!messageData) return;
-  
+
       // Only update the message in state (optimistic updates)
       setMessages((prev) =>
         prev.map((m) => (m.tempId === messageData.tempId ? messageData : m))
       );
     };
-  
+
     const onPrivateMessage = (data) => {
       const { messageData } = data;
       if (!messageData) return;
-    
+
       if (messageData.type === "private") {
         // Skip if the current user is the sender
         if (messageData.sender._id === currentUserId) return;
-    
+
         // Only proceed if current user is the recipient
         if (messageData.recipient._id !== currentUserId) return;
-    
+
         const isCurrentConversation =
-          activeConversation?.type === "private" && 
+          activeConversation?.type === "private" &&
           activeConversation?.id === messageData.sender._id;
-    
+
         // Skip if we've already seen this message
-        if (messageData._id && seenMessageIds.current.has(messageData._id)) return;
-    
+        if (messageData._id && seenMessageIds.current.has(messageData._id))
+          return;
+
         // Mark this message as seen
         if (messageData._id) seenMessageIds.current.add(messageData._id);
-    
+
         if (isCurrentConversation) {
           setMessages((prev) => {
             const isDuplicate = prev.some(
-              m => (m._id && m._id === messageData._id) ||
-                   (m.tempId && m.tempId === messageData.tempId) ||
-                   (m.content === messageData.content && 
-                    m.sender._id === messageData.sender._id &&
-                    Math.abs(new Date(m.timestamp) - new Date(messageData.timestamp)) < 1000)
+              (m) =>
+                (m._id && m._id === messageData._id) ||
+                (m.tempId && m.tempId === messageData.tempId) ||
+                (m.content === messageData.content &&
+                  m.sender._id === messageData.sender._id &&
+                  Math.abs(
+                    new Date(m.timestamp) - new Date(messageData.timestamp)
+                  ) < 1000)
             );
             return isDuplicate ? prev : [...prev, messageData];
           });
         }
-    
+
         // Update conversation partners (without touching unread counts)
-        setConversationPartners(prev =>
-          prev.map(p => 
-            p._id === messageData.sender._id 
-              ? { ...p, lastMessage: messageData } 
+        setConversationPartners((prev) =>
+          prev.map((p) =>
+            p._id === messageData.sender._id
+              ? { ...p, lastMessage: messageData }
               : p
           )
         );
       }
     };
-    
+
     const onGroupMessage = (data) => {
       const { message, groupId } = data;
-      
+
       // Skip if we've already seen this message to prevent duplicates
       if (message._id && seenMessageIds.current.has(message._id)) {
         return;
       }
-    
+
       // Check if the group exists in our state
       let group = groups.find((g) => g._id === groupId);
-      
+
       // If group doesn't exist in state but we received a message for it,
       // we should fetch updated groups to ensure we have the latest data
       if (!group) {
@@ -254,25 +258,26 @@ const Chat = () => {
         });
         return; // Exit for now, but we'll process this message after groups are fetched
       }
-    
+
       // Check if current user is a member of this group
       const isMember = group.members?.some((member) =>
         typeof member === "object"
           ? member._id === currentUserId
           : member === currentUserId
       );
-    
+
       if (!isMember) return;
-    
+
       // Don't add duplicate messages from current user (we already have optimistic updates)
       if (message.sender._id === currentUserId) {
         // Just update the confirmed message ID if needed
         if (message._id) {
-          setMessages(prev => 
-            prev.map(m => 
-              (m.content === message.content && 
-               m.sender._id === currentUserId && 
-               Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) < 5000)
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.content === message.content &&
+              m.sender._id === currentUserId &&
+              Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) <
+                5000
                 ? { ...m, _id: message._id }
                 : m
             )
@@ -280,14 +285,14 @@ const Chat = () => {
         }
         return;
       }
-    
+
       // Mark message as seen if we're viewing this group
       if (message._id) seenMessageIds.current.add(message._id);
-      
+
       const isCurrentConversation =
         activeConversation?.type === "group" &&
         activeConversation?.id === groupId;
-    
+
       // Update messages if viewing this group
       if (isCurrentConversation) {
         setMessages((prev) => {
@@ -297,42 +302,92 @@ const Chat = () => {
           return [...prev, message];
         });
       } else {
-        // Re-enable unread count update for group messages
-        setUnreadCounts(prev => ({
-          ...prev,
-          [groupId]: (prev[groupId] || 0) + 1
-        }));
-        
+        // // Re-enable unread count update for group messages
+        // setUnreadCounts((prev) => ({
+        //   ...prev,
+        //   [groupId]: (prev[groupId] || 0) + 1,
+        // }));
+
         // Also update total unread count for notification badge
-        setTotalUnread(prev => prev + 1);
+        setTotalUnread((prev) => prev + 1);
       }
-    
+
       // Always update groups list with new message for sidebar display
       setGroups((prev) =>
         prev.map((g) =>
-          g._id === groupId ? { 
-            ...g, 
-            lastMessage: message,
-            // Add this to ensure the unread status is reflected in the UI
-            hasUnread: !isCurrentConversation
-          } : g
+          g._id === groupId
+            ? {
+                ...g,
+                lastMessage: message,
+                // Add this to ensure the unread status is reflected in the UI
+                hasUnread: !isCurrentConversation,
+              }
+            : g
         )
       );
     };
 
     const onGroupCreated = (group) => {
-      setGroups(prev => {
+      setGroups((prev) => {
         // Check if group already exists to avoid duplicates
-        if (prev.some(g => g._id === group._id)) return prev;
+        if (prev.some((g) => g._id === group._id)) return prev;
         return [group, ...prev];
       });
-      
+
       // If current user is the creator, automatically open the group chat
       if (group.creator._id === currentUserId) {
         handleSelectGroup(group);
       }
     };
-    
+
+    const onGroupUpdated = (updatedGroup) => {
+      setGroups((prev) =>
+        prev.map((g) => (g._id === updatedGroup._id ? updatedGroup : g))
+      );
+
+      if (selectedGroup?._id === updatedGroup._id) {
+        setSelectedGroup(updatedGroup);
+      }
+    };
+
+    // Add this inside your useEffect for socket initialization
+    const onRemovedFromGroup = (data) => {
+      console.log("Removed from group event received:", data);
+
+      if (data.userId === currentUserId) {
+        // Remove the group from the groups list
+        setGroups((prev) => prev.filter((g) => g._id !== data.groupId));
+
+        // If currently viewing this group, leave the chat
+        if (selectedGroup?._id === data.groupId) {
+          handleLeaveChat();
+        }
+
+        alert("You have been removed from the group");
+      } else {
+        // Update the group if we're still a member
+        setGroups((prev) =>
+          prev.map((group) =>
+            group._id === data.groupId
+              ? {
+                  ...group,
+                  members: group.members.filter((m) => m._id !== data.userId),
+                  admins: group.admins.filter((a) => a._id !== data.userId),
+                }
+              : group
+          )
+        );
+
+        // Update selectedGroup if it's the one being modified
+        if (selectedGroup?._id === data.groupId) {
+          setSelectedGroup((prev) => ({
+            ...prev,
+            members: prev.members.filter((m) => m._id !== data.userId),
+            admins: prev.admins.filter((a) => a._id !== data.userId),
+          }));
+        }
+      }
+    };
 
     // Set up event listeners
     socket.on("connect", onConnect);
@@ -340,7 +395,10 @@ const Chat = () => {
     // socket.on("unread-count-update", onUnreadCountUpdate);
     socket.on("private-message-sent", onPrivateMessageSent);
     socket.on("private-message", onPrivateMessage);
-    socket.on('group-created', onGroupCreated);
+    socket.on("group-created", onGroupCreated);
+
+    socket.on("group-updated", onGroupUpdated);
+    socket.on("removed-from-group", onRemovedFromGroup);
 
     return () => {
       // Clean up listeners
@@ -349,7 +407,10 @@ const Chat = () => {
       // socket.off("unread-count-update", onUnreadCountUpdate);
       socket.off("private-message-sent", onPrivateMessageSent);
       socket.off("private-message", onPrivateMessage);
-      socket.off('group-created', onGroupCreated);
+      socket.off("group-created", onGroupCreated);
+
+      socket.off("group-updated", onGroupUpdated);
+      socket.off("removed-from-group", onRemovedFromGroup);
 
       socket.disconnect();
       socketRef.current = null;
@@ -363,43 +424,45 @@ const Chat = () => {
   ]);
 
   // Fetch groups for the current user
- // In the fetchGroups function
-const fetchGroups = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.get("http://localhost:5001/api/group", {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { populate: "creator members admins lastMessage.sender" },
-    });
-    
-    setGroups(response.data);
-    
-    // Initialize group unread counts
-    const initialUnreadCounts = {};
-    for (const group of response.data) {
-      // Get unread count for each group
-      try {
-        const unreadResponse = await axios.get(
-          `http://localhost:5001/api/group/${group._id}/unread-count`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        if (unreadResponse.data.count > 0) {
-          initialUnreadCounts[group._id] = unreadResponse.data.count;
+  // In the fetchGroups function
+  const fetchGroups = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5001/api/group", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { populate: "creator members admins lastMessage.sender" },
+      });
+
+      setGroups(response.data);
+
+      // Initialize group unread counts
+      const initialUnreadCounts = {};
+      for (const group of response.data) {
+        // Get unread count for each group
+        try {
+          const unreadResponse = await axios.get(
+            `http://localhost:5001/api/group/${group._id}/unread-count`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          if (unreadResponse.data.count > 0) {
+            initialUnreadCounts[group._id] = unreadResponse.data.count;
+          }
+        } catch (err) {
+          console.error(
+            `Failed to fetch unread count for group ${group._id}:`,
+            err
+          );
         }
-      } catch (err) {
-        console.error(`Failed to fetch unread count for group ${group._id}:`, err);
       }
+
+      // Update unread counts state
+      setUnreadCounts((prev) => ({ ...prev, ...initialUnreadCounts }));
+    } catch (err) {
+      console.error("Failed to fetch groups:", err);
+      setError("Could not load groups");
     }
-    
-    // Update unread counts state
-    setUnreadCounts(prev => ({ ...prev, ...initialUnreadCounts }));
-    
-  } catch (err) {
-    console.error("Failed to fetch groups:", err);
-    setError("Could not load groups");
-  }
-};
+  };
 
   // Fetch conversation partners with unread counts
   const fetchConversationPartners = async () => {
@@ -450,48 +513,48 @@ const fetchGroups = async () => {
     }
   };
 
- const markMessagesAsRead = async (conversationId, type) => {
-  try {
-    const token = localStorage.getItem("token");
-    let endpoint = "";
-    let body = {};
+  const markMessagesAsRead = async (conversationId, type) => {
+    try {
+      const token = localStorage.getItem("token");
+      let endpoint = "";
+      let body = {};
 
-    if (type === "private") {
-      endpoint = `http://localhost:5001/api/chat/mark-as-read`;
-      body = { conversationId, type };
-    } else {
-      endpoint = `http://localhost:5001/api/group/${conversationId}/mark-read`;
-    }
+      if (type === "private") {
+        endpoint = `http://localhost:5001/api/chat/mark-as-read`;
+        body = { conversationId, type };
+      } else {
+        endpoint = `http://localhost:5001/api/group/${conversationId}/mark-read`;
+      }
 
-    // Update local state immediately for better UX
-    setUnreadCounts((prev) => {
-      const newCounts = { ...prev };
-      delete newCounts[conversationId];
-      return newCounts;
-    });
-
-    await axios.post(endpoint, body, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    // Emit socket event to update counts
-    if (socketRef.current) {
-      socketRef.current.emit("messages-read", {
-        userId: currentUserId,
-        conversationId,
-        type,
+      // Update local state immediately for better UX
+      setUnreadCounts((prev) => {
+        const newCounts = { ...prev };
+        delete newCounts[conversationId];
+        return newCounts;
       });
-    }
-  } catch (err) {
-    console.error("Error marking messages as read:", err);
 
-    // Revert the unread count change if the API call fails
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [conversationId]: prev[conversationId] || 0,
-    }));
-  }
-};
+      await axios.post(endpoint, body, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Emit socket event to update counts
+      if (socketRef.current) {
+        socketRef.current.emit("messages-read", {
+          userId: currentUserId,
+          conversationId,
+          type,
+        });
+      }
+    } catch (err) {
+      console.error("Error marking messages as read:", err);
+
+      // Revert the unread count change if the API call fails
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [conversationId]: prev[conversationId] || 0,
+      }));
+    }
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -564,10 +627,10 @@ const fetchGroups = async () => {
   const handleSendGroupMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedGroup) return;
-  
+
     const groupId = selectedGroup._id;
     const tempId = `temp-${Date.now()}`;
-  
+
     // Optimistic UI update
     const optimisticMessage = {
       _id: tempId,
@@ -585,9 +648,9 @@ const fetchGroups = async () => {
       },
       type: "group",
     };
-  
+
     setMessages((prev) => [...prev, optimisticMessage]);
-    
+
     // Update groups list with optimistic message for sidebar
     setGroups((prev) =>
       prev.map((g) =>
@@ -611,9 +674,9 @@ const fetchGroups = async () => {
           : g
       )
     );
-  
+
     setNewMessage("");
-  
+
     try {
       const token = localStorage.getItem("token");
       socketRef.current.emit("group-message", {
@@ -632,7 +695,8 @@ const fetchGroups = async () => {
           g._id === groupId
             ? {
                 ...g,
-                lastMessage: g.lastMessage?._id === tempId ? null : g.lastMessage,
+                lastMessage:
+                  g.lastMessage?._id === tempId ? null : g.lastMessage,
               }
             : g
         )
@@ -704,7 +768,6 @@ const fetchGroups = async () => {
     };
   }, []);
 
-
   const handleLeaveChat = () => {
     // Clear active conversation first
     setActiveConversation(null);
@@ -724,8 +787,6 @@ const fetchGroups = async () => {
     }
   }, [messages]);
 
- 
-
   // --- Group Management Functions ---
 
   const handleCreateGroup = async () => {
@@ -733,7 +794,7 @@ const fetchGroups = async () => {
       alert("Group name and at least one member are required");
       return;
     }
-  
+
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
@@ -744,25 +805,24 @@ const fetchGroups = async () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-  
+
       // // Update state and close modal
       // setGroups((prev) => [response.data, ...prev]);
       setShowGroupModal(false);
       setGroupName("");
       setSelectedUsersForGroup([]);
-      
+
       // Create a modified group object with isNewGroup flag
       const newGroup = { ...response.data, isNewGroup: true };
-      
+
       // Immediately open the new group chat with the flag
       handleSelectGroup(newGroup);
-
     } catch (err) {
       console.error("Error creating group:", err);
       alert("Failed to create group");
     }
   };
-  
+
   const handleSelectGroup = async (group) => {
     try {
       // Set active conversation first
@@ -771,44 +831,44 @@ const fetchGroups = async () => {
         id: group._id,
       };
       setActiveConversation(newActiveConversation);
-  
+
       // Then reset other state
       setSelectedUser(null);
       setSelectedGroup(group);
       setMessages([]);
       setError("");
-  
+
       // Clear unread count for this group
       setUnreadCounts((prev) => {
         const newCounts = { ...prev };
         delete newCounts[group._id];
         return newCounts;
       });
-  
+
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
-  
+
       // Mark as read immediately
       await markMessagesAsRead(group._id, "group");
-  
+
       // Skip message fetching for newly created groups without messages
       if (group.isNewGroup && !group.lastMessage) {
         return;
       }
-  
+
       // Fetch messages for existing groups
       const response = await axios.get(
         `http://localhost:5001/api/group/${group._id}/messages`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-  
+
       // Mark fetched messages as seen
       response.data.forEach((msg) => {
         if (msg._id) seenMessageIds.current.add(msg._id);
       });
-  
+
       setMessages(response.data);
-      
+
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 0);
@@ -829,39 +889,75 @@ const fetchGroups = async () => {
   const handleViewGroupMembers = async () => {
     try {
       const token = localStorage.getItem("token");
+      // Store the group ID in a variable before the async call
+      const currentGroupId = selectedGroup._id;
+      console.log("Opening members for group:", currentGroupId);
+
       const response = await axios.get(
-        `http://localhost:5001/api/group/${selectedGroup._id}`,
+        `http://localhost:5001/api/group/${currentGroupId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setSelectedGroup(response.data);
+
+      // Make sure the group ID is preserved in the response data
+      const updatedGroup = {
+        ...response.data,
+        _id: currentGroupId, // Ensure the ID is preserved
+      };
+
+      setSelectedGroup(updatedGroup);
       setShowGroupMembers(true);
     } catch (err) {
       console.error("Error fetching group details:", err);
+      alert("Error loading group members");
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (memberId, groupId) => {
     if (!window.confirm("Are you sure you want to remove this member?")) return;
 
-    const groupId = selectedGroup?._id;
-    if (!groupId) return;
+    // Use the passed-in groupId parameter directly
+    console.log("Group ID:", groupId);
+    if (!groupId) {
+      // Fallback to selectedGroup._id if available
+      groupId = selectedGroup?._id;
+      if (!groupId) {
+        alert("Could not determine which group to remove member from.");
+        return;
+      }
+    }
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5001/api/group/${groupId}/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { members: [memberId] },
-      });
 
-      setSelectedGroup((prev) => ({
-        ...prev,
-        members: prev.members.filter((m) => m._id !== memberId),
-      }));
+      const response = await axios.delete(
+        `http://localhost:5001/api/group/${groupId}/members`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          data: { memberId }, // Send as request body
+        }
+      );
+
+      // Update local state
+      setSelectedGroup(response.data);
+      setGroups((prevGroups) =>
+        prevGroups.map((group) =>
+          group._id === groupId ? response.data : group
+        )
+      );
+
+      // Show success feedback
+      alert("Member removed successfully");
     } catch (err) {
       console.error("Error removing member:", err);
-      setError(err.response?.data?.message || "Failed to remove member");
+      alert(
+        "Failed to remove member: " +
+          (err.response?.data?.message || err.message)
+      );
     }
   };
 
@@ -1043,6 +1139,7 @@ const fetchGroups = async () => {
                       <span className="online-indicator"></span>
                     )}
                 </div>
+
                 <div className="conversation-details">
                   <div className="conversation-header">
                     <h4>{conversation.name}</h4>
@@ -1058,19 +1155,27 @@ const fetchGroups = async () => {
                     <div className="message-preview-container">
                       <p className="message-preview">
                         {conversation.lastMessage.sender?._id === currentUserId
-                          ? `You: ${conversation.lastMessage.content.substring(
-                              0,
-                              25
-                            )}`
+                          ? `You: ${
+                              conversation.lastMessage.content?.substring(
+                                0,
+                                25
+                              ) || ""
+                            }`
                           : conversation.type === "private"
-                          ? conversation.lastMessage.content.substring(0, 25)
-                          : `${
-                              conversation.lastMessage.sender?.username
-                            }: ${conversation.lastMessage.content.substring(
+                          ? conversation.lastMessage.content?.substring(
                               0,
                               25
-                            )}`}
-                        {conversation.lastMessage.content.length > 25
+                            ) || ""
+                          : `${
+                              conversation.lastMessage.sender?.username ||
+                              "User"
+                            }: ${
+                              conversation.lastMessage.content?.substring(
+                                0,
+                                25
+                              ) || ""
+                            }`}
+                        {conversation.lastMessage.content?.length > 25
                           ? "..."
                           : ""}
                       </p>
@@ -1208,12 +1313,48 @@ const fetchGroups = async () => {
                           {selectedGroup.creator?._id === member._id && (
                             <span className="creator-badge">Creator</span>
                           )}
+                          {selectedGroup.admins?.some(
+                            (a) => a._id === member._id
+                          ) &&
+                            selectedGroup.creator?._id !== member._id && (
+                              <span className="admin-badge">Admin</span>
+                            )}
                         </div>
-                        {selectedGroup.creator?._id === currentUserId &&
+                        {selectedGroup.admins?.some(
+                          (a) => a._id === currentUserId
+                        ) &&
                           member._id !== currentUserId && (
+                            // In your render method where the Remove button is created
                             <button
-                              onClick={() => handleRemoveMember(member._id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentGroupId = selectedGroup._id;
+                                console.log(
+                                  "Removing member from group:",
+                                  currentGroupId
+                                );
+
+                                // Pass the ID directly, not relying on the state at callback time
+                                if (currentGroupId) {
+                                  handleRemoveMember(
+                                    member._id,
+                                    currentGroupId
+                                  );
+                                } else {
+                                  alert(
+                                    "Group ID not available. Please try again."
+                                  );
+                                }
+                              }}
                               className="remove-member-btn"
+                              disabled={
+                                selectedGroup.creator?._id === member._id
+                              }
+                              title={
+                                selectedGroup.creator?._id === member._id
+                                  ? "Cannot remove group creator"
+                                  : "Remove member"
+                              }
                             >
                               Remove
                             </button>

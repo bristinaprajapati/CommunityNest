@@ -138,69 +138,78 @@ router.post('/:groupId/members', authenticate, async (req, res) => {
   }
 });
 
-// Remove members from group
+// In routes/group.js - Update the remove members route
 router.delete('/:groupId/members', authenticate, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { members } = req.body;
-
-    // Validate input
-    if (!groupId) {
-      return res.status(400).json({ message: 'Group ID is required' });
-    }
-
-    if (!members || !Array.isArray(members)) {  // Fixed missing parenthesis
-      return res.status(400).json({ message: 'Members array is required' });
-    }
-
-    // Check if user is an admin of the group
-    const group = await Group.findOne({
-      _id: groupId,
-      admins: req.userId
-    });
-
-    if (!group) {
-      return res.status(403).json({ 
-        message: 'Not authorized or group not found' 
-      });
-    }
-
-    // Prevent removing the last admin
-    const willRemoveAdmin = group.admins.some(adminId => 
-      members.includes(adminId.toString())
-    );
+    const { memberId } = req.body; // Extract memberId from request body
     
-    if (willRemoveAdmin && group.admins.length <= 1) {
-      return res.status(400).json({ 
-        message: 'Cannot remove the only admin' 
-      });
+    // Validate input
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group ID format' });
     }
 
-    // Update the group
-    const updatedGroup = await Group.findByIdAndUpdate(
-      groupId,
-      {
-        $pull: { 
-          members: { $in: members },
-          admins: { $in: members }
-        }
-      },
-      { new: true }
-    ).populate('members admins', 'username profileImage');
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+      return res.status(400).json({ message: 'Invalid member ID format' });
+    }
 
-    if (!updatedGroup) {
+    // Check if requester is admin
+    const group = await Group.findById(groupId);
+    if (!group) {
       return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!group.admins.includes(req.userId)) {
+      return res.status(403).json({ message: 'Only admins can remove members' });
+    }
+
+    // Prevent removing creator
+    if (group.creator.toString() === memberId) {
+      return res.status(403).json({ message: 'Cannot remove group creator' });
+    }
+
+    // Remove the member from the group
+   // In the remove members route
+const updatedGroup = await Group.findByIdAndUpdate(
+  groupId,
+  {
+    $pull: { 
+      members: memberId,
+      admins: memberId 
+    }
+  },
+  { new: true }
+)
+.populate('members admins', 'username profileImage')
+.populate({
+  path: 'lastMessage',
+  populate: { path: 'sender', select: 'username profileImage' }
+});
+
+    // Emit socket events
+    if (req.app.get('io')) {
+      const io = req.app.get('io');
+      
+      // Notify all group members
+      io.to(`group_${groupId}`).emit('group-updated', updatedGroup);
+      
+      // Notify the removed user specifically
+      io.to(`user_${memberId}`).emit('removed-from-group', {
+        groupId,
+        userId: memberId
+      });
     }
 
     res.json(updatedGroup);
   } catch (error) {
-    console.error('Error removing members:', error);
+    console.error('Error removing member:', error);
     res.status(500).json({ 
-      message: 'Error removing members',
+      message: 'Error removing member',
       error: error.message 
     });
   }
 });
+
 
 /// Get group messages
 router.get('/:groupId/messages', authenticate, async (req, res) => {
