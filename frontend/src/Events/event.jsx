@@ -256,6 +256,7 @@ const Events = () => {
   };
   
   return (
+    <div className="events">
     <div className="events-page">
       <Sidebar />
       <div className="events-content">
@@ -486,6 +487,7 @@ const Events = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };

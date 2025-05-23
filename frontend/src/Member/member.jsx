@@ -82,19 +82,19 @@ const MembersPage = () => {
       setMessage("Please enter a valid email.");
       return;
     }
-  
+
     const token = localStorage.getItem("token");
     if (!token) {
       setMessage("You need to be logged in to add members.");
       return;
     }
-  
+
     if (!communityId) {
       console.error("Community ID is missing, cannot add members.");
       setMessage("Community ID is missing, cannot add members.");
       return;
     }
-  
+
     try {
       setAdding(true);
       const response = await axios.post(
@@ -105,10 +105,10 @@ const MembersPage = () => {
           withCredentials: true,
         }
       );
-  
+
       setMessage(response.data.message);
       setEmail(""); // Clear input field
-  
+
       // Pass communityId explicitly
       fetchMembers(communityId);
     } catch (error) {
@@ -118,24 +118,26 @@ const MembersPage = () => {
       setAdding(false);
     }
   };
-  
+
   const removeMember = async (memberId) => {
-    const confirmed = window.confirm("Are you sure you want to remove this member?");
+    const confirmed = window.confirm(
+      "Are you sure you want to remove this member?"
+    );
     if (!confirmed) return;
-  
+
     if (!communityId) {
       console.error("Community ID is missing, cannot remove members.");
       setMessage("Community ID is missing, cannot remove members.");
       return;
     }
-  
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         setMessage("You need to be logged in to remove members.");
         return;
       }
-  
+
       const response = await axios.delete(
         `http://localhost:5001/api/community/${communityId}/remove-member/${memberId}`,
         {
@@ -143,9 +145,9 @@ const MembersPage = () => {
           withCredentials: true,
         }
       );
-  
+
       setMessage(response.data.message);
-  
+
       // Pass communityId explicitly
       fetchMembers(communityId);
     } catch (error) {
@@ -153,7 +155,6 @@ const MembersPage = () => {
       setMessage("Error removing member. Please try again.");
     }
   };
-  
 
   return (
     <div className="members-page-container">
@@ -164,7 +165,7 @@ const MembersPage = () => {
             {/* <FiUser className="header-icon" /> */}
             Community Members
           </h2>
-          
+
           {userStatus === "community" && (
             <div className="add-member-card">
               <h4 className="add-member-title">Add New Members</h4>
@@ -192,7 +193,11 @@ const MembersPage = () => {
           )}
 
           {message && (
-            <div className={`message-box ${message.includes("Error") ? "error" : "success"}`}>
+            <div
+              className={`message-box ${
+                message.includes("Error") ? "error" : "success"
+              }`}
+            >
               {message}
             </div>
           )}
@@ -218,9 +223,27 @@ const MembersPage = () => {
                   <tr key={member._id}>
                     <td>
                       <div className="member-info">
-                        <div className="member-avatar">
-                          {member.username.charAt(0).toUpperCase()}
-                        </div>
+                        {member.profileImage ? (
+                          <img
+                            src={member.profileImage}
+                            alt={member.username}
+                            className="member-profile-image"
+                            onError={(e) => {
+                              console.error(
+                                `Failed to load image for ${member.username}`
+                              );
+                              e.target.onerror = null;
+                              e.target.style.display = "none";
+                              e.target.parentNode.innerHTML = `<div class="member-avatar">${member.username
+                                .charAt(0)
+                                .toUpperCase()}</div>`;
+                            }}
+                          />
+                        ) : (
+                          <div className="member-avatar">
+                            {member.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         {member.username}
                       </div>
                     </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../Sidebar/sidebar.jsx";
 import "./EventDetails.css";
@@ -14,6 +14,7 @@ import {
   FaTrashAlt,
 } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
+import { FiArrowLeft } from "react-icons/fi";
 
 const EventDetails = () => {
   const { eventId } = useParams();
@@ -43,7 +44,7 @@ const EventDetails = () => {
   const [deletingRow, setDeletingRow] = useState(null);
   const [setUserStatus] = useState(null);
   const userStatus = localStorage.getItem("status") || null;
-
+  const navigate = useNavigate(); 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -451,11 +452,15 @@ const EventDetails = () => {
   return (
     <div className="event-details-container">
       <div className="event-header">
+      <div className="main-title-row">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          <FiArrowLeft />
+        </button>
         <h1 className="event-title">
           {loading ? "Loading..." : eventTitle || "Event Not Found"}
         </h1>
-        {/* <div className="event-actions"> */}
-        <button
+      </div>
+      <button
           className="btn-primary"
           onClick={() => setShowUploadPopup(true)}
           disabled={uploading}

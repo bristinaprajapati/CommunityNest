@@ -275,50 +275,49 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Events Section (75%) */}
-          <div className="events-section">
-            <div className="events-header">
-              <h5 className="event-title1">Upcoming Events</h5>
-            </div>
-            {loading ? (
-              <div className="loading-container">
-                <p>Loading announcements...</p>
-              </div>
-            ) : announcements.length > 0 ? (
-              <div className="events-grid">
-                {" "}
-                {/* Changed from horizontal-scroll-container */}
-                {announcements.map((announcement) => (
-                  <div key={announcement._id} className="announcement-card">
-                   <div className="card-image-container" onClick={() => openImageModal(announcement.image)}>
-                      <img
-                        src={
-                          announcement.image ||
-                          "https://via.placeholder.com/350x150?text=Event"
-                        }
-                        alt={announcement.title}
-                        className="card-image"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="card-details">
-                      <h4 className="event-title2">{announcement.title}</h4>
-                      <p className="event-date">
-                        {announcement.date} • {announcement.time}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+       
 
-              </div>
-              
-              
-            ) : (
-              <div className="no-events">
-                <p>No upcoming events currently</p>
-              </div>
-            )}
-          </div>
+<div className="events-section">
+  <div className="events-header">
+    <h5 className="event-section-title">Upcoming Events</h5>
+  </div>
+  {loading ? (
+    <div className="loading-container">
+      <p>Loading announcements...</p>
+    </div>
+  ) : announcements.length > 0 ? (
+  
+<div className="events-grid">
+  {announcements.map((announcement) => (
+    <div key={announcement._id} className="announcement-card">
+      <div className="card-image-container" onClick={() => openImageModal(announcement.image)}>
+        <img
+          src={
+            announcement.image ||
+            "https://via.placeholder.com/350x150?text=Event"
+          }
+          alt={announcement.title}
+          className="card-image"
+          loading="lazy"
+        />
+      </div>
+      <div className="card-details">
+        <h4 className="event-card-title">{announcement.title}</h4>
+        <p className="event-date">
+          {announcement.date} • {announcement.time}
+        </p>
+      </div>
+    </div>
+  ))}
+</div>
+  ) : (
+    <div className="no-events">
+      <p>No upcoming events currently</p>
+    </div>
+  )}
+</div>
+
+
         </div>
       </div>
        {/* Image Modal */}

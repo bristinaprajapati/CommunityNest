@@ -9,7 +9,7 @@
   height: 100vh;
   overflow: hidden;
   background-color: #f8f9fa;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ 
   margin-top: 86px;
   margin-left: 270px;
 }
@@ -32,14 +32,14 @@
 
 
 .event-title {
-  font-size: 20px;
-  font-weight: 590;
+  font-size: 22px;
+  font-weight: 500;
   color: #2c3e50;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Remove max-width constraint */
+  margin-top: 20px;
 }
 
 .add-sheet-btn {
@@ -508,7 +508,7 @@
 
 .empty-recipients {
   color: #6c757d;
-  font-style: italic;
+
   padding: 20px 15px;
   text-align: center;
   background-color: #f8f9fa;
@@ -777,4 +777,55 @@
 .attendee-table td:last-child {
   width: 40px;
   text-align: center;
+}
+
+/* Main title row with back button and heading */
+.main-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.main-title-row h1{
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Back button styles */
+.back-button {
+  background-color: #fcfcfc;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: #cfe7f4;
+  transform: translateX(-2px);
+}
+
+.back-button svg {
+  color: #0369a1;
+  width: 20px;
+  height: 20px;
+}
+
+/* You may need to adjust the event-header class to accommodate the new layout */
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
 }

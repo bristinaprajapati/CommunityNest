@@ -1,23 +1,22 @@
-/* ================ BASE STYLES ================ */
 .meeting-container {
   display: flex;
   min-height: 100vh;
-  /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
+
   background-color: #f5f7fa;
   margin-top: 80px;
   margin-left: 0px;
-  position: relative; /* Add this to establish a stacking context */
+  position: relative; 
 }
 
 .meeting-content {
   flex: 1;
   padding: 2rem;
   margin-left: 250px;
-  position: relative; /* Add this */
-  z-index: 1; /* Regular content should have lower z-index */
+  position: relative; 
+  z-index: 1; 
 }
 
-/* ================ HEADER & NAVIGATION ================ */
+/*  HEADER & NAVIGATION */
 .meeting-header {
   display: flex;
   justify-content: space-between;
@@ -103,7 +102,7 @@
   font-size: 1.2rem;
 }
 
-/* ================ MEETING CARDS ================ */
+/* MEETING CARDS  */
 .meetings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

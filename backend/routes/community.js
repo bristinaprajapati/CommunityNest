@@ -105,14 +105,40 @@ router.delete("/:communityId/remove-member/:memberId", authenticate, async (req,
 });
 
   
+// // Get all members of a community (for both community managers and normal members)
+// router.get("/:communityId/members", authenticate, async (req, res) => {
+//   const userId = req.userId; // Use req.userId consistently
+//   const { communityId } = req.params;
+  
+//   try {
+//     // Find the community
+//     const community = await Community.findById(communityId).populate("members", "username email");
+
+//     if (!community) {
+//       return res.status(404).json({ message: "Community not found!" });
+//     }
+
+//     const currentUser = await User.findById(userId);
+
+//     // Check if the user is part of the community
+//     if (currentUser.status === "member" && !currentUser.communities.includes(communityId)) {
+//       return res.status(403).json({ message: "You are not a member of this community!" });
+//     }
+
+//     res.status(200).json({ members: community.members });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// });
+
 // Get all members of a community (for both community managers and normal members)
 router.get("/:communityId/members", authenticate, async (req, res) => {
-  const userId = req.userId; // Use req.userId consistently
+  const userId = req.userId;
   const { communityId } = req.params;
   
   try {
-    // Find the community
-    const community = await Community.findById(communityId).populate("members", "username email");
+    // Update this line to include profileImage in the populated fields
+    const community = await Community.findById(communityId).populate("members", "username email profileImage");
 
     if (!community) {
       return res.status(404).json({ message: "Community not found!" });
@@ -130,32 +156,5 @@ router.get("/:communityId/members", authenticate, async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
-
-// Get all members of a community (for both community managers and normal members)
-router.get("/:communityId/members", authenticate, async (req, res) => {
-  const userId = req.userId; // Use req.userId consistently
-  const { communityId } = req.params;
-  
-  try {
-    // Find the community
-    const community = await Community.findById(communityId).populate("members", "username email");
-
-    if (!community) {
-      return res.status(404).json({ message: "Community not found!" });
-    }
-
-    const currentUser = await User.findById(userId);
-
-    // Check if the user is part of the community
-    if (currentUser.status === "member" && !currentUser.communities.includes(communityId)) {
-      return res.status(403).json({ message: "You are not a member of this community!" });
-    }
-
-    res.status(200).json({ members: community.members });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
-});
-
 
 module.exports = router;

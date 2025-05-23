@@ -288,29 +288,8 @@
   gap: 8px;
 }
 
-.event-title1 {
-  margin: 0;
-  font-size: 18px;
-  font-style: normal;
-  color: #2c3e50;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.event-title2 {
-  margin: 0;
-  font-size: 16px;
-  font-style: normal;
-  color: #2c3e50;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.event-date {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0;
-}
 
 .loading-container,
 .no-events {
@@ -615,4 +594,35 @@
 
 .card-image-container:hover {
   transform: scale(1.02);
+}
+
+.event-section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-style: normal;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-date {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin: 2px 0 0;
+  align-items: center;
+  gap: 3px;
+  font-weight: 400;
+
+
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
