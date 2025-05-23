@@ -48,6 +48,7 @@ const Chat = () => {
   const socketRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
   // --- useEffect Hooks ---
   const {
     unreadCounts,
@@ -238,11 +239,41 @@ const Chat = () => {
 
     const onGroupMessage = (data) => {
       const { message, groupId } = data;
+      console.log("Group message received:", { groupId, message });
 
-      // Skip if we've already seen this message to prevent duplicates
-      if (message._id && seenMessageIds.current.has(message._id)) {
-        return;
-      }
+      // Skip duplicates
+      if (message._id && seenMessageIds.current.has(message._id)) return;
+
+      // Update groups list with new lastMessage - ONLY if the message is newer
+      setGroups((prev) =>
+        prev.map((g) => {
+          if (g._id !== groupId) return g;
+
+          // Compare timestamps to prevent "going backward" in time
+          const currentLastMessageTime = g.lastMessage?.timestamp
+            ? new Date(g.lastMessage.timestamp).getTime()
+            : 0;
+
+          const newMessageTime = message.timestamp
+            ? new Date(message.timestamp).getTime()
+            : 0;
+
+          // Only update if the new message is newer or there's no existing message
+          if (newMessageTime >= currentLastMessageTime || !g.lastMessage) {
+            return {
+              ...g,
+              lastMessage: message,
+              updatedAt: new Date().toISOString(),
+              hasUnread: !(
+                activeConversation?.type === "group" &&
+                activeConversation?.id === groupId
+              ),
+            };
+          }
+
+          return g;
+        })
+      );
 
       // Check if the group exists in our state
       let group = groups.find((g) => g._id === groupId);
@@ -250,13 +281,11 @@ const Chat = () => {
       // If group doesn't exist in state but we received a message for it,
       // we should fetch updated groups to ensure we have the latest data
       if (!group) {
-        // Don't just fetch groups and exit, store the message for processing after fetch
+        console.log("Received message for unknown group, fetching groups...");
         fetchGroups().then(() => {
-          // Process the same message again after groups are fetched
-          // Use setTimeout to ensure this runs after state updates
           setTimeout(() => onGroupMessage(data), 100);
         });
-        return; // Exit for now, but we'll process this message after groups are fetched
+        return;
       }
 
       // Check if current user is a member of this group
@@ -327,16 +356,52 @@ const Chat = () => {
       );
     };
 
-    const onGroupCreated = (group) => {
-      setGroups((prev) => {
+    const onGroupCreated = (data) => {
+      console.log("Group created event received:", data);
+
+      // Handle both data formats (direct group object or {group, hasUnread} structure)
+      const group = data.group || data;
+      const hasUnread = data.hasUnread || false;
+
+      const currentUserId = localStorage.getItem("userId");
+
+      // Skip if group is undefined or missing members
+      if (!group || !group.members) {
+        console.error("Invalid group data received:", data);
+        return;
+      }
+
+      // Handle both object and string member formats
+      const isMember = group.members.some((m) =>
+        typeof m === "object" ? m._id === currentUserId : m === currentUserId
+      );
+
+      // Update groups state regardless of whether user is creator or not
+      setGroups((prevGroups) => {
         // Check if group already exists to avoid duplicates
-        if (prev.some((g) => g._id === group._id)) return prev;
-        return [group, ...prev];
+        if (prevGroups.some((g) => g._id === group._id)) return prevGroups;
+
+        return [
+          {
+            ...group,
+            hasUnread: group.creator._id !== currentUserId,
+            lastMessage: group.lastMessage || null,
+          },
+          ...prevGroups,
+        ];
       });
 
-      // If current user is the creator, automatically open the group chat
+      // If the current user is the creator, automatically select the group
       if (group.creator._id === currentUserId) {
         handleSelectGroup(group);
+      } else if (isMember) {
+        // Only for non-creators who are members
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [group._id]: 1,
+        }));
+
+        setTotalUnread((prev) => prev + 1);
       }
     };
 
@@ -350,20 +415,22 @@ const Chat = () => {
       }
     };
 
-    // Add this inside your useEffect for socket initialization
+    
     const onRemovedFromGroup = (data) => {
       console.log("Removed from group event received:", data);
-
+    
       if (data.userId === currentUserId) {
         // Remove the group from the groups list
         setGroups((prev) => prev.filter((g) => g._id !== data.groupId));
-
+    
         // If currently viewing this group, leave the chat
         if (selectedGroup?._id === data.groupId) {
           handleLeaveChat();
         }
-
-        alert("You have been removed from the group");
+    
+        // Use the group name from the socket event or fallback
+        const groupName = data.groupName || 'the group';
+        alert(`You have been removed from "${groupName}"`);
       } else {
         // Update the group if we're still a member
         setGroups((prev) =>
@@ -377,7 +444,7 @@ const Chat = () => {
               : group
           )
         );
-
+    
         // Update selectedGroup if it's the one being modified
         if (selectedGroup?._id === data.groupId) {
           setSelectedGroup((prev) => ({
@@ -630,8 +697,9 @@ const Chat = () => {
 
     const groupId = selectedGroup._id;
     const tempId = `temp-${Date.now()}`;
+    const timestamp = new Date().toISOString();
 
-    // Optimistic UI update
+    // Create optimistic message with all required fields
     const optimisticMessage = {
       _id: tempId,
       tempId,
@@ -641,7 +709,7 @@ const Chat = () => {
         profileImage: currentUserProfileImage,
       },
       content: newMessage,
-      timestamp: new Date().toISOString(),
+      timestamp, // Use consistent timestamp
       group: {
         _id: groupId,
         name: selectedGroup.name,
@@ -651,27 +719,40 @@ const Chat = () => {
 
     setMessages((prev) => [...prev, optimisticMessage]);
 
-    // Update groups list with optimistic message for sidebar
+    // Update both the groups list AND activeConversations
+    const updatedGroup = {
+      ...selectedGroup,
+      lastMessage: {
+        _id: tempId,
+        content: newMessage,
+        timestamp, // Use consistent timestamp
+        sender: {
+          _id: currentUserId,
+          username: currentUsername,
+        },
+        group: {
+          _id: groupId,
+          name: selectedGroup.name,
+        },
+      },
+      updatedAt: timestamp, // Use consistent timestamp
+    };
+
+    // Update groups state
     setGroups((prev) =>
-      prev.map((g) =>
-        g._id === groupId
+      prev.map((g) => (g._id === groupId ? updatedGroup : g))
+    );
+
+    // Also update activeConversations directly to ensure immediate UI update
+    setActiveConversations((prev) =>
+      prev.map((c) =>
+        c._id === groupId && c.type === "group"
           ? {
-              ...g,
-              lastMessage: {
-                _id: tempId,
-                content: newMessage,
-                timestamp: new Date().toISOString(),
-                sender: {
-                  _id: currentUserId,
-                  username: currentUsername,
-                },
-                group: {
-                  _id: groupId,
-                  name: selectedGroup.name,
-                },
-              },
+              ...c,
+              lastMessage: optimisticMessage,
+              updatedAt: timestamp, // Use consistent timestamp
             }
-          : g
+          : c
       )
     );
 
@@ -806,17 +887,26 @@ const Chat = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // // Update state and close modal
-      // setGroups((prev) => [response.data, ...prev]);
+      // For creator: open group with no unread
+      const newGroup = {
+        ...response.data,
+        hasUnread: false,
+        lastMessage: response.data.lastMessage,
+        isNewGroup: true,
+      };
+
+      // For other members: socket will handle their updates
+      socketRef.current.emit("join-group", newGroup._id);
+
+      // Immediately open the group for creator
+      handleSelectGroup(newGroup);
+
       setShowGroupModal(false);
       setGroupName("");
       setSelectedUsersForGroup([]);
 
-      // Create a modified group object with isNewGroup flag
-      const newGroup = { ...response.data, isNewGroup: true };
-
-      // Immediately open the new group chat with the flag
-      handleSelectGroup(newGroup);
+      // Force a refresh of groups to get the latest data
+      await fetchGroups();
     } catch (err) {
       console.error("Error creating group:", err);
       alert("Failed to create group");
@@ -886,78 +976,231 @@ const Chat = () => {
     );
   };
 
-  const handleViewGroupMembers = async () => {
+  
+// Update handleViewGroupMembers
+const handleViewGroupMembers = async () => {
+  try {
+    setMembersLoading(true);
+    const token = localStorage.getItem("token");
+    const currentGroupId = selectedGroup._id;
+
+    const response = await axios.get(
+      `http://localhost:5001/api/group/${currentGroupId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    // Ensure members is always an array
+    const updatedGroup = {
+      ...response.data,
+      _id: currentGroupId,
+      members: response.data.members || [],
+      admins: response.data.admins || []
+    };
+
+    setSelectedGroup(updatedGroup);
+    setShowGroupMembers(true);
+  } catch (err) {
+    console.error("Error fetching group details:", err);
+    alert("Error loading group members");
+  } finally {
+    setMembersLoading(false);
+  }
+};
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm("Are you sure you want to remove this member?")) return;
+  
     try {
       const token = localStorage.getItem("token");
-      // Store the group ID in a variable before the async call
-      const currentGroupId = selectedGroup._id;
-      console.log("Opening members for group:", currentGroupId);
-
-      const response = await axios.get(
-        `http://localhost:5001/api/group/${currentGroupId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      // Make sure the group ID is preserved in the response data
-      const updatedGroup = {
-        ...response.data,
-        _id: currentGroupId, // Ensure the ID is preserved
-      };
-
-      setSelectedGroup(updatedGroup);
-      setShowGroupMembers(true);
-    } catch (err) {
-      console.error("Error fetching group details:", err);
-      alert("Error loading group members");
-    }
-  };
-
-  const handleRemoveMember = async (memberId, groupId) => {
-    if (!window.confirm("Are you sure you want to remove this member?")) return;
-
-    // Use the passed-in groupId parameter directly
-    console.log("Group ID:", groupId);
-    if (!groupId) {
-      // Fallback to selectedGroup._id if available
-      groupId = selectedGroup?._id;
+      const groupId = selectedGroup?._id;
+      
       if (!groupId) {
-        alert("Could not determine which group to remove member from.");
+        console.error("No group selected");
         return;
       }
-    }
-
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.delete(
+      
+      // Close the modal first to prevent UI errors
+      setShowGroupMembers(false);
+      
+      // Create a temporary copy of the group with the member removed
+      const tempMembers = selectedGroup.members?.filter(m => m._id !== memberId) || [];
+      const tempGroup = {
+        ...selectedGroup,
+        members: tempMembers
+      };
+      
+      // Update state with this temporary group
+      setSelectedGroup(tempGroup);
+      
+      // Now make the API call
+      await axios.delete(
         `http://localhost:5001/api/group/${groupId}/members`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          data: { memberId }, // Send as request body
+          data: { memberId },
         }
       );
-
-      // Update local state
-      setSelectedGroup(response.data);
-      setGroups((prevGroups) =>
-        prevGroups.map((group) =>
-          group._id === groupId ? response.data : group
-        )
-      );
-
-      // Show success feedback
+  
+      // Refresh the group data after successful removal
+      await fetchGroups();
+      
+      // Re-open the members modal with updated data
+      setShowGroupMembers(true);
+      
       alert("Member removed successfully");
     } catch (err) {
       console.error("Error removing member:", err);
-      alert(
-        "Failed to remove member: " +
-          (err.response?.data?.message || err.message)
+      alert("Failed to remove member: " + (err.response?.data?.message || err.message));
+      
+      // If there's an error, reload the group data to ensure state is consistent
+      if (selectedGroup?._id) {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          `http://localhost:5001/api/group/${selectedGroup._id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSelectedGroup(response.data);
+      }
+    }
+  };
+
+  // New function to refresh group data
+  const refreshGroupData = async (groupId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // Get updated group data with all necessary fields
+      const { data: updatedGroup } = await axios.get(
+        `http://localhost:5001/api/group/${groupId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
+
+      // Update selectedGroup with full data
+      setSelectedGroup(updatedGroup);
+
+      // Update local groups list
+      setGroups((prevGroups) =>
+        prevGroups.map((group) =>
+          group._id === groupId ? updatedGroup : group
+        )
+      );
+
+      // Update active conversations
+      setActiveConversations((prevConvs) =>
+        prevConvs.map((conv) =>
+          conv._id === groupId && conv.type === "group"
+            ? { ...conv, ...updatedGroup }
+            : conv
+        )
+      );
+
+      // Fetch latest messages
+      const { data: messages } = await axios.get(
+        `http://localhost:5001/api/group/${groupId}/messages`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setMessages(messages);
+
+      // Reset socket connections
+      if (socketRef.current) {
+        socketRef.current.emit("leave-group", groupId);
+        setTimeout(() => {
+          socketRef.current.emit("join-group", groupId);
+        }, 100);
+      }
+    } catch (err) {
+      console.error("Error refreshing group data:", err);
+    }
+  };
+
+  // New comprehensive refresh function that keeps the chat open
+  const refreshGroupChat = async (groupId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // 1. Get updated group data
+      const groupResponse = await axios.get(
+        `http://localhost:5001/api/group/${groupId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const updatedGroup = groupResponse.data;
+
+      // 2. Update local state
+      setSelectedGroup(updatedGroup);
+      setGroups((prevGroups) =>
+        prevGroups.map((group) =>
+          group._id === groupId ? updatedGroup : group
+        )
+      );
+
+      // 3. Reset and refetch messages
+      setMessages([]);
+      const messagesResponse = await axios.get(
+        `http://localhost:5001/api/group/${groupId}/messages`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setMessages(messagesResponse.data);
+
+      // 4. Reset socket connections
+      if (socketRef.current) {
+        socketRef.current.emit("leave-group", groupId);
+        setTimeout(() => {
+          socketRef.current.emit("join-group", groupId);
+        }, 100); // Small delay to ensure leave completes first
+      }
+
+      // 5. Make sure active conversation is still set
+      setActiveConversation({
+        type: "group",
+        id: groupId,
+      });
+    } catch (err) {
+      console.error("Error refreshing group data:", err);
+      // Don't show an error - just log it
+    }
+  };
+
+  // Add this new helper function to fetch complete group data
+  const fetchFullGroupData = async (groupId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.get(
+        `http://localhost:5001/api/group/${groupId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Update both selectedGroup and groups state with complete data
+      const fullGroupData = response.data;
+
+      setSelectedGroup(fullGroupData);
+      setGroups((prevGroups) =>
+        prevGroups.map((group) =>
+          group._id === groupId ? fullGroupData : group
+        )
+      );
+
+      // Also update the socket connection for the group
+      socketRef.current.emit("leave-group", groupId);
+      socketRef.current.emit("join-group", groupId);
+    } catch (err) {
+      console.error("Error fetching complete group data:", err);
     }
   };
 
@@ -1109,6 +1352,12 @@ const Chat = () => {
                 activeConversation?.type === conversation.type
                   ? "active"
                   : ""
+              } ${
+                // Add this class for unread conversations
+                unreadCounts[conversation._id] > 0 ||
+                (conversation.type === "group" && conversation.hasUnread)
+                  ? "has-unread"
+                  : ""
               }`}
             >
               <div
@@ -1154,30 +1403,42 @@ const Chat = () => {
                   {conversation.lastMessage && (
                     <div className="message-preview-container">
                       <p className="message-preview">
-                        {conversation.lastMessage.sender?._id === currentUserId
-                          ? `You: ${
-                              conversation.lastMessage.content?.substring(
-                                0,
-                                25
-                              ) || ""
-                            }`
-                          : conversation.type === "private"
-                          ? conversation.lastMessage.content?.substring(
-                              0,
-                              25
-                            ) || ""
-                          : `${
-                              conversation.lastMessage.sender?.username ||
-                              "User"
-                            }: ${
-                              conversation.lastMessage.content?.substring(
-                                0,
-                                25
-                              ) || ""
-                            }`}
-                        {conversation.lastMessage.content?.length > 25
-                          ? "..."
-                          : ""}
+                        {conversation.lastMessage?.isSystemMessage ? (
+                          <em>
+                            {conversation.lastMessage.content.length > 25
+                              ? conversation.lastMessage.content.substring(
+                                  0,
+                                  25
+                                ) + "..."
+                              : conversation.lastMessage.content}
+                          </em>
+                        ) : conversation.lastMessage?.sender?._id ===
+                          currentUserId ? (
+                          `You: ${
+                            conversation.lastMessage.content.length > 25
+                              ? conversation.lastMessage.content.substring(
+                                  0,
+                                  25
+                                ) + "..."
+                              : conversation.lastMessage.content
+                          }`
+                        ) : conversation.type === "group" ? (
+                          `${
+                            conversation.lastMessage?.sender?.username || "User"
+                          }: ${
+                            conversation.lastMessage?.content.length > 25
+                              ? conversation.lastMessage?.content.substring(
+                                  0,
+                                  25
+                                ) + "..."
+                              : conversation.lastMessage?.content || ""
+                          }`
+                        ) : conversation.lastMessage?.content.length > 25 ? (
+                          conversation.lastMessage?.content.substring(0, 25) +
+                          "..."
+                        ) : (
+                          conversation.lastMessage?.content
+                        )}
                       </p>
                       {unreadCounts[conversation._id] > 0 && (
                         <span className="unread-count">
@@ -1295,83 +1556,85 @@ const Chat = () => {
                     </button>
                   </div>
 
-                  <div className="members-list">
-                    {selectedGroup.members?.map((member) => (
-                      <div key={member._id} className="member-item">
-                        <div className="member-avatar">
-                          {member.profileImage ? (
-                            <img
-                              src={member.profileImage || "/placeholder.svg"}
-                              alt={member.username}
-                            />
-                          ) : (
-                            <FontAwesomeIcon icon={faUser} />
-                          )}
-                        </div>
-                        <div className="member-info">
-                          <h4>{member.username}</h4>
-                          {selectedGroup.creator?._id === member._id && (
-                            <span className="creator-badge">Creator</span>
-                          )}
-                          {selectedGroup.admins?.some(
-                            (a) => a._id === member._id
-                          ) &&
-                            selectedGroup.creator?._id !== member._id && (
-                              <span className="admin-badge">Admin</span>
-                            )}
-                        </div>
-                        {selectedGroup.admins?.some(
-                          (a) => a._id === currentUserId
-                        ) &&
-                          member._id !== currentUserId && (
-                            // In your render method where the Remove button is created
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const currentGroupId = selectedGroup._id;
-                                console.log(
-                                  "Removing member from group:",
-                                  currentGroupId
-                                );
-
-                                // Pass the ID directly, not relying on the state at callback time
-                                if (currentGroupId) {
-                                  handleRemoveMember(
-                                    member._id,
-                                    currentGroupId
-                                  );
-                                } else {
-                                  alert(
-                                    "Group ID not available. Please try again."
-                                  );
-                                }
-                              }}
-                              className="remove-member-btn"
-                              disabled={
-                                selectedGroup.creator?._id === member._id
-                              }
-                              title={
-                                selectedGroup.creator?._id === member._id
-                                  ? "Cannot remove group creator"
-                                  : "Remove member"
-                              }
-                            >
-                              Remove
-                            </button>
-                          )}
-                      </div>
-                    ))}
-                  </div>
+                 <div className="members-list">
+  {selectedGroup && Array.isArray(selectedGroup.members) ? (
+    selectedGroup.members.length > 0 ? (
+      selectedGroup.members.map((member) => (
+        <div key={member?._id || Math.random()} className="member-item">
+          <div className="member-avatar">
+            {member?.profileImage ? (
+              <img
+                src={member.profileImage || "/placeholder.svg"}
+                alt={member?.username || "User"}
+              />
+            ) : (
+              <FontAwesomeIcon icon={faUser} />
+            )}
+          </div>
+          <div className="member-info">
+            <h4>{member?.username || "User"}</h4>
+            {selectedGroup?.creator?._id === member?._id && (
+              <span className="creator-badge">Creator</span>
+            )}
+            {selectedGroup?.admins?.some(a => a?._id === member?._id) &&
+              selectedGroup?.creator?._id !== member?._id && (
+                <span className="admin-badge">Admin</span>
+              )}
+          </div>
+          {selectedGroup.admins?.some(a => a?._id === currentUserId) &&
+            member?._id && member._id !== currentUserId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (member?._id) {
+                    handleRemoveMember(member._id);
+                  }
+                }}
+                className="remove-member-btn"
+                disabled={selectedGroup?.creator?._id === member?._id}
+                title={
+                  selectedGroup?.creator?._id === member?._id
+                    ? "Cannot remove group creator"
+                    : "Remove member"
+                }
+              >
+                Remove
+              </button>
+            )}
+        </div>
+      ))
+    ) : (
+      <div className="no-members">No members in this group</div>
+    )
+  ) : (
+    <div className="loading-members">Loading members...</div>
+  )}
+</div>
                 </div>
               </div>
             )}
 
             <div className="chat-messages">
               {messages.map((message) => {
+                // Special handling for system messages
+                if (message.isSystemMessage) {
+                  return (
+                    <div key={message._id} className="message system-message">
+                      <div className="message-content system-content">
+                        <em>{message.content}</em>
+                        <span className="message-time">
+                          {formatTime(message.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Regular message handling
                 const isSent = message.sender._id === currentUserId;
                 return (
                   <div
-                    key={message._id}
+                    key={message._id || message.tempId}
                     className={`message ${isSent ? "sent" : "received"}`}
                   >
                     {!isSent && (

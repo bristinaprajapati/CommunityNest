@@ -74,15 +74,22 @@ export const ChatProvider = ({ children }) => {
       const { _id, sender } = data.message;
     
       // Skip if already processed this message
-      if (_id && processedMessages.current.has(_id)) return;
+      if (_id && processedMessages.current.has(_id)) {
+        console.log('Skipping already processed message:', _id);
+        return;
+      }
     
       // Always process the message to update lastMessage, even if from current user
-      if (_id) processedMessages.current.add(_id);
+      if (_id) {
+        console.log('Adding message to processed set:', _id);
+        processedMessages.current.add(_id);
+      }
     
       // Only update unread counts if not from current user AND not viewing this group
       if (sender._id !== currentUserId && 
           !(activeConversation?.type === "group" && 
             activeConversation?.id === data.groupId)) {
+        console.log('Incrementing unread count for group:', data.groupId);
         // Always set at least 1 for the first message
         setUnreadCounts(prev => ({
           ...prev,
@@ -90,6 +97,8 @@ export const ChatProvider = ({ children }) => {
         }));
       }
     };
+
+    
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);

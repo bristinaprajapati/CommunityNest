@@ -7,8 +7,6 @@ const User = require('../models/User');
 const Message = require('../models/Message');
 const mongoose = require('mongoose');
 
-//create group
-// In your backend group routes
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, members } = req.body;
@@ -25,16 +23,53 @@ router.post('/', authenticate, async (req, res) => {
 
     await group.save();
     
+    // Create welcome message
+    const welcomeMessage = await Message.create({
+      content: `Welcome to "${name}" group`,
+      sender: req.userId,
+      group: group._id,
+      type: 'group',
+      isSystemMessage: true
+    });
+
+    // Update group with last message
+    group.lastMessage = welcomeMessage._id;
+    await group.save();
+    
     // Populate all necessary fields before returning
     const populatedGroup = await Group.findById(group._id)
       .populate('creator members admins', 'username profileImage')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'username' }
+      })
       .lean();
 
-    // Emit socket event to all members
+    // Populate the welcome message fully for socket event
+    const populatedMessage = await Message.findById(welcomeMessage._id)
+      .populate('sender', 'username profileImage')
+      .lean();
+
+    // Emit socket events to all members
     if (req.app.get('io')) {
       const io = req.app.get('io');
       memberIds.forEach(memberId => {
-        io.to(`user_${memberId}`).emit('group-created', populatedGroup);
+        const isCreator = memberId === req.userId;
+        
+        // First send group created event
+        io.to(`user_${memberId}`).emit('group-created', {
+          group: populatedGroup,
+          hasUnread: !isCreator
+        });
+        
+        // Then also send group message event for the welcome message
+        // But don't send it to the creator (they don't need unread count)
+        if (!isCreator) {
+          io.to(`user_${memberId}`).emit('group-message', {
+            message: populatedMessage,
+            groupId: group._id
+          });
+        }
       });
     }
 
@@ -70,16 +105,23 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Get group details
+// In your group details route
 router.get('/:groupId', authenticate, async (req, res) => {
   try {
     const group = await Group.findOne({
       _id: req.params.groupId,
       members: req.userId
-    }).populate('creator members admins', 'username email profileImage');
+    })
+    .populate('creator members admins', 'username email profileImage')
+    .lean();
 
     if (!group) {
       return res.status(404).json({ message: 'Group not found or access denied' });
     }
+
+    // Ensure members and admins are arrays
+    group.members = group.members || [];
+    group.admins = group.admins || [];
 
     res.json(group);
   } catch (error) {
@@ -137,30 +179,19 @@ router.post('/:groupId/members', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error adding members' });
   }
 });
-
-// In routes/group.js - Update the remove members route
 router.delete('/:groupId/members', authenticate, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { memberId } = req.body; // Extract memberId from request body
-    
-    // Validate input
-    if (!mongoose.Types.ObjectId.isValid(groupId)) {
-      return res.status(400).json({ message: 'Invalid group ID format' });
-    }
+    const { memberId } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(memberId)) {
-      return res.status(400).json({ message: 'Invalid member ID format' });
-    }
+    // First get the group to include name in response
+    const group = await Group.findOne({
+      _id: groupId,
+      admins: req.userId
+    });
 
-    // Check if requester is admin
-    const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ message: 'Group not found' });
-    }
-
-    if (!group.admins.includes(req.userId)) {
-      return res.status(403).json({ message: 'Only admins can remove members' });
+      return res.status(404).json({ message: 'Group not found or not authorized' });
     }
 
     // Prevent removing creator
@@ -168,23 +199,18 @@ router.delete('/:groupId/members', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Cannot remove group creator' });
     }
 
-    // Remove the member from the group
-   // In the remove members route
-const updatedGroup = await Group.findByIdAndUpdate(
-  groupId,
-  {
-    $pull: { 
-      members: memberId,
-      admins: memberId 
-    }
-  },
-  { new: true }
-)
-.populate('members admins', 'username profileImage')
-.populate({
-  path: 'lastMessage',
-  populate: { path: 'sender', select: 'username profileImage' }
-});
+    // Perform the removal
+    const updatedGroup = await Group.findByIdAndUpdate(
+      groupId,
+      {
+        $pull: { 
+          members: memberId,
+          admins: memberId 
+        }
+      },
+      { new: true }
+    )
+    .populate('creator members admins', 'username profileImage');
 
     // Emit socket events
     if (req.app.get('io')) {
@@ -193,9 +219,10 @@ const updatedGroup = await Group.findByIdAndUpdate(
       // Notify all group members
       io.to(`group_${groupId}`).emit('group-updated', updatedGroup);
       
-      // Notify the removed user specifically
+      // Notify the removed user specifically with group name
       io.to(`user_${memberId}`).emit('removed-from-group', {
         groupId,
+        groupName: group.name, // Include group name
         userId: memberId
       });
     }
@@ -203,10 +230,7 @@ const updatedGroup = await Group.findByIdAndUpdate(
     res.json(updatedGroup);
   } catch (error) {
     console.error('Error removing member:', error);
-    res.status(500).json({ 
-      message: 'Error removing member',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Error removing member' });
   }
 });
 
@@ -371,4 +395,7 @@ router.get('/:groupId/unread-count', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error getting unread count' });
   }
 });
+// In your group creation route (backend)
+
+
 module.exports = router;
