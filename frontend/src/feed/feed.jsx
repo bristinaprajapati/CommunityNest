@@ -286,33 +286,56 @@ const fetchCurrentUser = async () => {
     }
   };
 
-  const handleLike = async (postId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `http://localhost:5001/api/posts/${postId}/like`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
 
-      setPosts(
-        posts.map((post) => {
-          if (post._id === postId) {
-            return {
-              ...post,
-              likes: response.data.likes,
-              liked: response.data.liked,
-            };
+const handleLike = async (postId) => {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.post(
+      `http://localhost:5001/api/posts/${postId}/like`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const currentUserId = user?._id || userId || localStorage.getItem("userId");
+    
+    // Update both posts and myPosts arrays
+    const updatePostInArray = (postsArray) => {
+      return postsArray.map((post) => {
+        if (post._id === postId) {
+          // If the post was liked, add user to likedBy array, otherwise remove
+          let updatedLikedBy = [...(post.likedBy || [])];
+          
+          if (response.data.liked) {
+            // Add the user ID if not already present
+            if (!updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy.push(currentUserId);
+            }
+          } else {
+            // Remove the user ID
+            updatedLikedBy = updatedLikedBy.filter(id => id !== currentUserId);
           }
-          return post;
-        })
-      );
-    } catch (error) {
-      console.error("Error liking post:", error);
-    }
-  };
+          
+          return {
+            ...post,
+            likes: response.data.likes,
+            liked: response.data.liked,
+            likedBy: updatedLikedBy
+          };
+        }
+        return post;
+      });
+    };
+    
+    setPosts(updatePostInArray(posts));
+    setMyPosts(updatePostInArray(myPosts));
+    
+  } catch (error) {
+    console.error("Error liking post:", error);
+  }
+};
+
 
   const formatDate = (dateString) => {
     const options = {
@@ -324,8 +347,10 @@ const fetchCurrentUser = async () => {
     };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
+  
 
   return (
+    <div className="feed">
     <div className="feed-container">
       <Sidebar />
       <div className="feed-header">
@@ -426,6 +451,7 @@ const fetchCurrentUser = async () => {
           ))
         )}
       </div>
+    </div>
     </div>
   );
 };
@@ -583,6 +609,7 @@ const PostItem = ({ post, currentUserId, onLike, onDelete, activeTab, onUpdate }
         </div>
       )}
     </div>
+    
   );
 };
 

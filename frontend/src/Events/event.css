@@ -365,7 +365,7 @@
 
 .modal-content input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
@@ -381,7 +381,7 @@
 
 .modal-content textarea:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
@@ -407,12 +407,12 @@
 }
 
 .modal-buttons button[type="submit"] {
-  background-color: #4CAF50;
+  background-color: #3b82f6;
   color: white;
 }
 
 .modal-buttons button[type="submit"]:hover {
-  background-color: #45a049;
+  background-color: #2563eb;
 }
 
 .modal-buttons button[type="button"] {

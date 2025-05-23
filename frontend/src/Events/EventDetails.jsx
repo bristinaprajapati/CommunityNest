@@ -34,16 +34,31 @@ const EventDetails = () => {
   const [activeSheetUrl, setActiveSheetUrl] = useState(""); // Track the active sheet URL
   const [editableEmails, setEditableEmails] = useState("");
   const [feedbackEmails, setFeedbackEmails] = useState([]);
-  // Add a ref to the dropdown container
+  const [feedbackSubject, setFeedbackSubject] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
   const dropdownRef = useRef(null);
-  // Fetch the event title and Google Sheet information on page load
-
   const [token, setToken] = useState(null);
   const [email, setEmail] = useState(null);
 
   const [deletingRow, setDeletingRow] = useState(null);
-   const [ setUserStatus] = useState(null);
-   const userStatus = localStorage.getItem('status') || null;
+  const [setUserStatus] = useState(null);
+  const userStatus = localStorage.getItem("status") || null;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdownIndex(null);
+        setOpenDropdownUrl(null); 
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     // Initialize editableEmails with the emails of attendees marked as "Present"
     const presentEmails = getPresentAttendees()
@@ -52,8 +67,6 @@ const EventDetails = () => {
     setEditableEmails(presentEmails);
   }, [activeSheetUrl, attendees]); // Re-run when activeSheetUrl or attendees change
 
-  
-  
   useEffect(() => {
     const fetchAuthDetails = async () => {
       try {
@@ -80,7 +93,6 @@ const EventDetails = () => {
 
     fetchAuthDetails();
   }, []);
-
 
   useEffect(() => {
     const fetchEventTitle = async () => {
@@ -127,60 +139,6 @@ const EventDetails = () => {
     };
   }, []);
 
-  // const handleDeleteRow = async (frontendRowIndex) => {
-  //   if (!activeSheetUrl) {
-  //     alert("Please select a sheet first");
-  //     return;
-  //   }
-
-  //   // Convert frontend 0-based index to Google Sheets 1-based row number
-  //   // Add 2 because:
-  //   // - +1 for 1-based indexing
-  //   // - +1 more because header row is row 1 in Sheets
-  //   const sheetRowNumber = frontendRowIndex + 2;
-
-  //   if (!window.confirm(`Are you sure you want to delete row ${sheetRowNumber}?`)) {
-  //     return;
-  //   }
-
-  //   try {
-  //     setDeletingRow(frontendRowIndex);
-
-  //     const response = await axios.delete(`${baseUrl}/google-sheets/delete-row`, {
-  //       data: {
-  //         sheetUrl: activeSheetUrl,
-  //         rowNumber: sheetRowNumber // Using the converted 1-based row number
-  //       },
-  //       headers: {
-  //         'Content-Type': 'application/json'
-  //       },
-  //       withCredentials: true
-  //     });
-
-  //     if (!response.data?.success) {
-  //       throw new Error(response.data?.error || "Deletion failed");
-  //     }
-
-  //     // Update local state by removing the deleted row
-  //     setAttendees(prev => prev.filter((_, i) => i !== frontendRowIndex));
-
-  //   } catch (error) {
-  //     console.error("Delete error:", {
-  //       error: error.message,
-  //       response: error.response?.data
-  //     });
-
-  //     alert(`Deletion failed: ${error.response?.data?.error || error.message}`);
-
-  //     // Refresh data from server to sync state
-  //     if (activeSheetUrl) {
-  //       handleSheetClick(activeSheetUrl, activeSheetTitle);
-  //     }
-  //   } finally {
-  //     setDeletingRow(null);
-  //   }
-  // };
-
   const sendFeedbackEmail = async (emails, subject, message) => {
     try {
       const response = await fetch(
@@ -202,6 +160,9 @@ const EventDetails = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // Clear form on success
+        setFeedbackSubject("");
+        setFeedbackMessage("");
         alert("Feedback emails sent successfully!");
       } else {
         alert(`Failed to send feedback emails: ${data.error}`);
@@ -517,7 +478,7 @@ const EventDetails = () => {
         >
           <FaFolder /> Attendees
         </button>
-        {userStatus !== "member" && ( 
+        {userStatus !== "member" && (
           <button
             className={`tab-btn ${activeTab === "feedback" ? "active" : ""}`}
             onClick={() => setActiveTab("feedback")}
@@ -570,7 +531,7 @@ const EventDetails = () => {
                           <FaEllipsisV />
                         </button>
                         {openDropdownUrl === sheet.url && (
-                          <div className="dropdown-menu1">
+                          <div className="dropdown-menu2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -707,12 +668,12 @@ const EventDetails = () => {
                 <div className="feedback-sidebar">
                   <h3>Feedback Recipients</h3>
                   <div className="sheet-selector">
-                    <label>Select Sheet:</label>
+                    <label>Select Sheet</label>
                     <select
                       onChange={(e) => handleSheetSelect(e.target.value)}
                       value={activeSheetUrl}
                     >
-                      <option value="">-- Select a sheet --</option>
+                      <option value="">- Select a sheet -</option>
                       {googleSheets.map((sheet) => (
                         <option key={sheet.url} value={sheet.url}>
                           {sheet.title}
@@ -723,7 +684,7 @@ const EventDetails = () => {
 
                   {activeSheetUrl && (
                     <div className="active-sheet-info">
-                      <h4>Active Sheet:</h4>
+                      <h4>Active Sheet</h4>
                       <p className="sheet-name">
                         {
                           googleSheets.find(
@@ -735,7 +696,7 @@ const EventDetails = () => {
                   )}
 
                   <div className="recipient-list">
-                    <h4>Attendees Marked as Present:</h4>
+                    <h4>Attendees Marked as Present</h4>
                     {getPresentAttendees().length > 0 ? (
                       <ul>
                         {getPresentAttendees().map((attendee, index) => (
@@ -791,6 +752,8 @@ const EventDetails = () => {
                       <input
                         type="text"
                         name="subject"
+                        value={feedbackSubject}
+                        onChange={(e) => setFeedbackSubject(e.target.value)}
                         placeholder="Enter email subject"
                         required
                       />
@@ -800,6 +763,8 @@ const EventDetails = () => {
                       <label>Message:</label>
                       <textarea
                         name="message"
+                        value={feedbackMessage}
+                        onChange={(e) => setFeedbackMessage(e.target.value)}
                         placeholder="Enter your feedback message"
                         rows={6}
                         required
@@ -807,7 +772,7 @@ const EventDetails = () => {
                     </div>
 
                     <button type="submit" className="btn-primary send-btn">
-                      <FaEnvelope /> Send Feedback
+                      <FaEnvelope /> Send Email
                     </button>
                   </form>
                 </div>

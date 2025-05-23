@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../Sidebar/sidebar.jsx";
 import "./meeting.css";
 import {
@@ -33,6 +33,19 @@ const ScheduleMeetingForm = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [userStatus, setUserStatus] = useState(null);
+  const menuRef = useRef(null);
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuVisible && menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuVisible(null);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuVisible]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -366,6 +379,7 @@ const ScheduleMeetingForm = () => {
                   <div key={event.id} className="meeting-card">
                     <div className="card-header">
                       <h3>{event.summary}</h3>
+                      <div ref={menuRef}>
                       <button
                         className="card-menu-btn"
                         onClick={() => handleMenuToggle(event.id)}
@@ -393,6 +407,7 @@ const ScheduleMeetingForm = () => {
                           )}
                         </div>
                       )}
+                      </div>
                     </div>
   
                     <div className="card-body">

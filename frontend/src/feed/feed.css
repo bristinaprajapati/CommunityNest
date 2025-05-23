@@ -1,9 +1,18 @@
 /* General Feed Styles */
+
+.feed{
+  background-color: #f8f9fa;
+
+}
+
 .feed-container {
   max-width: 600px;
-  margin: 70px auto 0 550px;
+  margin: 70px auto; /* Changed to auto for proper centering */
   padding: 20px;
-  
+  position: relative;
+  width: 100%;
+  margin-left: 500px;
+
 }
 
 .feed-header {
@@ -17,6 +26,7 @@
   color: #2c3e50;
   margin-top: 20px;
 }
+
 
 /* Post Form Styles */
 .post-form-container {
@@ -209,11 +219,31 @@
 .feed-post__action-button:hover {
   color: #333;
 }
+/* Fix for like button icon styling */
 
-.feed-post__action-icon--liked {
-  fill: red; /* For the heart icon */
-  color: red; /* Fallback */
+ Fix for like button icon styling */
+
+/* Base styling for heart icon */
+.feed-post__action-button svg {
+  transition: all 0.2s ease;
+  stroke: #666; /* Default stroke color */
+  fill: none; /* Transparent fill by default */
 }
+
+/* Fix for liked state - Feather icons need specific styling */
+.feed-post__action-icon--liked {
+  fill: #e41e3f !important;
+  color: #e41e3f !important;
+  stroke: #e41e3f !important;
+}
+
+/* Styling for unliked state to ensure consistency */
+.feed-post__action-icon--unliked {
+  fill: none !important;
+  stroke: #666 !important;
+  color: #666 !important;
+}
+
 @keyframes heartBeat {
   0% { transform: scale(1); }
   25% { transform: scale(1.2); }
@@ -226,9 +256,20 @@
   animation: heartBeat 0.5s ease-in-out;
 }
 
+/* Add missing styling for the liked/unliked button */
+.feed-post__action-button--liked {
+  color: #e41e3f !important;
+}
+
+.feed-post__action-button--unliked {
+  color: #666 !important;
+}
+
 .feed-post__like-count {
   margin-left: 4px;
+  color: #666;
 }
+
 
 /* Post Options Styles */
 .feed-post__options {
@@ -323,7 +364,7 @@
 /* Responsive Adjustments */
 @media (max-width: 1200px) {
   .feed-container {
-    margin-left: 200px;
+    margin-left: 400px;
   }
 }
 
@@ -331,6 +372,7 @@
   .feed-container {
     margin-left: 0;
     padding-top: 80px;
+    margin-left: 300px;
   }
 }
 
@@ -545,6 +587,3 @@
 .feed-post__delete-button svg {
   font-size: 18px;
 }
-
-
-
