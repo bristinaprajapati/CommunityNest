@@ -11,6 +11,20 @@ const Sidebar = () => {
   const [userStatus, setUserStatus] = useState(null);
   const location = useLocation(); // Get current location
 
+// Add this to your existing useEffect or create a new one:
+
+useEffect(() => {
+  const handleProfileImageChange = (event) => {
+    setProfileImage(event.detail.profileImage);
+  };
+  
+  // Listen for custom profile image change events
+  window.addEventListener('profileImageChanged', handleProfileImageChange);
+  
+  return () => {
+    window.removeEventListener('profileImageChanged', handleProfileImageChange);
+  };
+}, []);
 
   useEffect(() => {
     const fetchProfileImage = async () => {

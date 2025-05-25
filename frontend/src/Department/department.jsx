@@ -22,6 +22,26 @@ const Department = () => {
     fetchDepartments();
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // If a click happens anywhere on the document
+      if (activeMenu !== null) {
+        const isDropdownToggle = event.target.closest(".dropdown-toggle");
+        const isDropdownMenu = event.target.closest(".dropdown-menu");
+
+        // If the click is outside both the dropdown toggle and dropdown menu
+        if (!isDropdownToggle && !isDropdownMenu) {
+          setActiveMenu(null);
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activeMenu]);
+
   const fetchUserStatus = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -135,21 +155,21 @@ const Department = () => {
   };
   const dropdownRefs = useRef({});
   // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const isDropdownToggle = event.target.closest(".dropdown-toggle");
-      const isDropdownMenu = event.target.closest(".dropdown-menu");
+  // useEffect(() => {
+  //   const handleClickOutside = (event) => {
+  //     const isDropdownToggle = event.target.closest(".dropdown-toggle");
+  //     const isDropdownMenu = event.target.closest(".dropdown-menu");
 
-      if (!isDropdownToggle && !isDropdownMenu) {
-        setActiveMenu(null);
-      }
-    };
+  //     if (!isDropdownToggle && !isDropdownMenu) {
+  //       setActiveMenu(null);
+  //     }
+  //   };
 
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
+  //   document.addEventListener("click", handleClickOutside);
+  //   return () => {
+  //     document.removeEventListener("click", handleClickOutside);
+  //   };
+  // }, []);
 
   return (
     <div className="department-page">
@@ -197,46 +217,48 @@ const Department = () => {
                   </button>
                 </div>
 
-                <div
-                  className="card-actions"
-                  ref={(el) => (dropdownRefs.current[dept._id] = el)}
-                >
-                  <div className="dropdown">
-                    <button
-                      className="dropdown-toggle"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveMenu(
-                          activeMenu === dept._id ? null : dept._id
-                        );
-                      }}
-                    >
-                      <FiMoreVertical />
-                    </button>
-                    {activeMenu === dept._id && (
-                      <div className="dropdown-menu">
-                        <button
-                          className="dropdown-item"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRenameDepartment(dept);
-                          }}
-                        >
-                          <FiEdit2 /> Rename
-                        </button>
-                        <button
-                          className="dropdown-item"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDepartment(dept._id);
-                          }}
-                        >
-                          <FiTrash2 /> Delete
-                        </button>
-                      </div>
-                    )}
+                {userStatus === "community" && (
+                  <div
+                    className="card-actions"
+                    ref={(el) => (dropdownRefs.current[dept._id] = el)}
+                  >
+                    <div className="dropdown">
+                      <button
+                        className="dropdown-toggle"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent event bubbling
+                          setActiveMenu(
+                            activeMenu === dept._id ? null : dept._id
+                          );
+                        }}
+                      >
+                        <FiMoreVertical />
+                      </button>
+                      {activeMenu === dept._id && (
+                        <div className="dropdown-menu">
+                          <button
+                            className="dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRenameDepartment(dept);
+                            }}
+                          >
+                            <FiEdit2 /> Rename
+                          </button>
+                          <button
+                            className="dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDepartment(dept._id);
+                            }}
+                          >
+                            <FiTrash2 /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ))
           )}

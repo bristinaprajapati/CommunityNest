@@ -229,59 +229,74 @@ const Header = () => {
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
+ // Find the handleUpload function and modify it like this:
 
-    const formData = new FormData();
-    formData.append("profileImage", selectedFile);
+const handleUpload = async () => {
+  if (!selectedFile) return;
 
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        "http://localhost:5001/api/auth/upload-profile-image",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+  const formData = new FormData();
+  formData.append("profileImage", selectedFile);
 
-      if (response.data.success) {
-        localStorage.setItem("profileImage", response.data.imageUrl);
-        setUser((prev) => ({ ...prev, profileImage: response.data.imageUrl }));
-        setShowImageUpload(false);
-        setSelectedFile(null);
-        setPreviewImage(null);
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.post(
+      "http://localhost:5001/api/auth/upload-profile-image",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
       }
-    } catch (error) {
-      console.error("Error uploading profile image:", error);
-      alert("Failed to upload profile image");
+    );
+
+    if (response.data.success) {
+      localStorage.setItem("profileImage", response.data.imageUrl);
+      setUser((prev) => ({ ...prev, profileImage: response.data.imageUrl }));
+      
+      // Dispatch a custom event to notify other components
+      window.dispatchEvent(new CustomEvent('profileImageChanged', {
+        detail: { profileImage: response.data.imageUrl }
+      }));
+      
+      setShowImageUpload(false);
+      setSelectedFile(null);
+      setPreviewImage(null);
     }
-  };
+  } catch (error) {
+    console.error("Error uploading profile image:", error);
+    alert("Failed to upload profile image");
+  }
+};
 
-  const removeProfileImage = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.delete(
-        "http://localhost:5001/api/auth/remove-profile-image",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        localStorage.removeItem("profileImage");
-        setUser((prev) => ({ ...prev, profileImage: null }));
-        setShowImageUpload(false);
+// Also update the removeProfileImage function similarly:
+const removeProfileImage = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.delete(
+      "http://localhost:5001/api/auth/remove-profile-image",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
-    } catch (error) {
-      console.error("Error removing profile image:", error);
+    );
+
+    if (response.data.success) {
+      localStorage.removeItem("profileImage");
+      setUser((prev) => ({ ...prev, profileImage: null }));
+      
+      // Dispatch a custom event for profile image removal
+      window.dispatchEvent(new CustomEvent('profileImageChanged', {
+        detail: { profileImage: null }
+      }));
+      
+      setShowImageUpload(false);
     }
-  };
+  } catch (error) {
+    console.error("Error removing profile image:", error);
+  }
+};
 
   useEffect(() => {
     if (unreadCount > 0 && showNotifications) {
