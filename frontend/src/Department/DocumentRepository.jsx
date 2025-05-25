@@ -198,7 +198,7 @@ const DocumentRepositoryPage = () => {
 
       <main className="document-repository-main">
         <div className="main-title-row">
-          <button className="back-button" onClick={() => navigate(-1)}>
+        <button className="back-button" onClick={() => navigate('/department')}>
             <FiArrowLeft />
           </button>
           <h1>Document Repository</h1>

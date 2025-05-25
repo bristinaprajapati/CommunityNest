@@ -91,7 +91,7 @@ const Login = () => {
   // Handle Forgot Password logic
   const handleForgotPassword = () => {
     console.log('Forgot Password clicked');
-    navigate('/forgot-password');
+    navigate('/forgot-password', { state: { email } });
   };
 
   // Toggle password visibility

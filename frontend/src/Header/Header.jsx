@@ -329,6 +329,7 @@ const removeProfileImage = async () => {
       // Navigate to the document repository for the file's department
       navigate(`/department/${notification.relatedEntity.department}/documents`);
     }
+    
   };
 
   return (

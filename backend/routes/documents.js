@@ -64,6 +64,8 @@ router.post("/createDocument", async (req, res) => {
 });
 
 
+
+
 // Get documents by department and user (handles community & member status)
 router.get("/getDocumentsByDepartmentAndUser/:departmentId/:userId", async (req, res) => {
   try {
@@ -79,19 +81,38 @@ router.get("/getDocumentsByDepartmentAndUser/:departmentId/:userId", async (req,
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // For members, we want to get documents created by their admin
-    // For communities, we want their own documents
-    const queryUserId = user.status === "member" && user.communityDetails[0]?.adminId 
-      ? user.communityDetails[0].adminId 
-      : userId;
+    let query = { department: departmentId };
+    
+    if (user.status === "member" && user.communityDetails[0]?.adminId) {
+      // For members: Get documents created by their admin OR by themselves
+      query.$or = [
+        { userId: user.communityDetails[0].adminId },  // Admin's documents
+        { userId: userId }  // Member's own documents
+      ];
+    } else if (user.status === "community") {
+      // For community admins: Get their own documents AND those created by their members
+      const community = await Community.findOne({ admin: userId });
+      
+      if (community && community.members.length > 0) {
+        // Include documents created by the admin and all community members
+        query.$or = [
+          { userId: userId },  // Admin's own documents
+          { userId: { $in: community.members } }  // Documents created by any member
+        ];
+      } else {
+        // Fallback to just admin's documents if no community/members found
+        query.userId = userId;
+      }
+    } else {
+      // For other users: Get only their own documents
+      query.userId = userId;
+    }
 
-    // Fetch documents based on department and the correct user ID
-    const documents = await Document.find({
-      department: departmentId,
-      userId: queryUserId
-    })
-    .populate("department", "name")
-    .exec();
+    // Rest of the function remains the same...
+    // Fetch documents based on the query
+    const documents = await Document.find(query)
+      .populate("department", "name")
+      .exec();
 
     // Get department name (fallback to query if not populated)
     let departmentName = documents[0]?.department?.name;
@@ -114,6 +135,7 @@ router.get("/getDocumentsByDepartmentAndUser/:departmentId/:userId", async (req,
     });
   }
 });
+
 
 router.delete("/deleteDocument/:id", async (req, res) => {
   try {
@@ -190,19 +212,12 @@ router.put("/editDocument", async (req, res) => {
       });
     }
 
-    // Check if user has permission to edit
-    if (document.userId.toString() !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "You don't have permission to edit this document",
-      });
-    }
-
     // Update document
     document.title = title;
     document.content = content;
     document.department = department;
     document.updatedAt = new Date();
+    document.lastEditedBy = userId; // Track who made the edit
 
     await document.save();
 
@@ -224,7 +239,6 @@ router.put("/editDocument", async (req, res) => {
     });
   }
 });
-
 
 
 

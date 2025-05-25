@@ -76,6 +76,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     // Get the uploading user's info
     const uploadingUser = await User.findById(req.body.userId);
 
+    // REMOVE OR COMMENT OUT THIS SECTION:
+    /*
     // Send notifications using departmentName from request body
     await sendFileNotifications(
       req.app.get('io'),
@@ -84,6 +86,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       uploadingUser.username,
       req.body.departmentName // Using from request
     );
+    */
 
     res.status(201).json({ success: true, file: newFile });
   } catch (error) {
@@ -91,7 +94,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     res.status(500).json({ error: "File upload failed" });
   }
 });
-
 
 // Route to get files by department and user
 router.get("/getFilesByDepartmentAndUser/:department/:userId", async (req, res) => {
@@ -159,8 +161,10 @@ router.get('/view/:id', async (req, res) => {
     const file = await File.findById(req.params.id);
     if (!file) return res.status(404).send('File not found');
 
-    // Get the absolute path to the file
-    const filePath = path.resolve(file.filePath);
+    // Join the UPLOADS_DIR with the filename stored in filePath
+    const filePath = path.join(UPLOADS_DIR, file.filePath);
+    
+    console.log('Looking for file at path:', filePath); // For debugging
     
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File does not exist on server');
@@ -178,7 +182,6 @@ router.get('/view/:id', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-
 
 
 // Route to extract text from a PDF file

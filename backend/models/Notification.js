@@ -16,7 +16,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['notice', 'announcement', 'event', 'file'],
+    enum: ['notice', 'announcement', 'event'],
     required: true
   },
   relatedEntity: {

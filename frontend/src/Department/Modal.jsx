@@ -73,7 +73,7 @@ const Modal = () => {
   const handleBack = () => {
     navigate(`/department/${department}/documents`, {
       state: { 
-        departmentName: location.state?.departmentName 
+        departmentName: location.state?.departmentName || docData?.department?.name || ""
       }
     });
   };

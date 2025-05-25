@@ -194,22 +194,32 @@ res.status(200).json({
 });
 
 
-
 // Forgot Password route
 router.post('/forgot-password', async (req, res) => {
-  const { email } = req.body;
+  const { email, checkOnly } = req.body;
 
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        message: 'User not found', 
+        exists: false 
+      });
+    }
+    
+    // If we're just checking if the email exists, return without sending OTP
+    if (checkOnly) {
+      return res.status(200).json({ 
+        success: true, 
+        exists: true 
+      });
     }
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
 
-    // Store OTP and expiration time (optional)
+    // Store OTP and expiration time
     user.resetToken = otp;
     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
 
@@ -233,6 +243,8 @@ router.post('/forgot-password', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
 
 // Verify OTP route
 router.post('/verify-otp', async (req, res) => {

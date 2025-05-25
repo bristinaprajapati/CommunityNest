@@ -594,7 +594,7 @@
   border: 1px solid #fff;
   z-index: 1000;
 }
-.connection-indicator {
+/* .connection-indicator {
   position: absolute;
   top: -2px;
   right: -2px;
@@ -603,7 +603,7 @@
   border-radius: 50%;
   background-color: #ff4d4f;
   border: 1px solid white;
-}
+} */
 
 .Message-icon-wrapper {
   position: relative;
@@ -652,3 +652,4 @@
     cursor: pointer;
   }
 }
+
