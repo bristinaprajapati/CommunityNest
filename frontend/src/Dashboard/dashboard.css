@@ -1,11 +1,10 @@
-/* Dashboard Layout */
 .dashboard {
   display: flex;
   min-height: 100vh;
   background-color: #f8f9fa;
   margin-top: 90px;
   margin-left: 32px;
-  
+  font-family: sans-serif;
 }
 
 .dashboard-content {
@@ -374,6 +373,7 @@
   width: 90%;
   outline: none;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  font-family: sans-serif;
 }
 
 .notice-modal-overlay {
@@ -411,7 +411,7 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   resize: vertical;
-  font-family: inherit;
+  font-family: sans-serif;
   font-size: 0.95rem;
   line-height: 1.5;
   transition: border-color 0.3s;
@@ -442,10 +442,9 @@
 .publish-button {
   padding-left: 20px;
   padding-right: 20px;
-  background-color: #1c2936;
-  color: white;
+  color: #1c2936;
   border: none;
-  border-radius: 6px;
+  border-radius: 30px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -612,6 +611,7 @@
   color: #2c3e50;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
 }
 
 .event-date {
@@ -621,6 +621,7 @@
   align-items: center;
   gap: 3px;
   font-weight: 400;
+  text-align: left;
 
 
   text-overflow: ellipsis;

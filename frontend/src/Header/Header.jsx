@@ -35,7 +35,6 @@ const Header = () => {
   // const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-
   const { totalUnread } = useChat();
 
   const {
@@ -57,48 +56,47 @@ const Header = () => {
     console.log("Total unread messages:", totalUnread);
   }, [totalUnread]);
 
-// In your Header.jsx, replace the socket useEffect with this:
-// useEffect(() => {
-//   const socket = socketRef.current = io("http://localhost:5001", {
-//     withCredentials: true,
-//     reconnection: true,
-//     reconnectionAttempts: 5,
-//     reconnectionDelay: 1000,
-//   });
+  // In your Header.jsx, replace the socket useEffect with this:
+  // useEffect(() => {
+  //   const socket = socketRef.current = io("http://localhost:5001", {
+  //     withCredentials: true,
+  //     reconnection: true,
+  //     reconnectionAttempts: 5,
+  //     reconnectionDelay: 1000,
+  //   });
 
-//   const onUnreadCountUpdate = (data) => {
-//     if (data && data.totalUnread !== undefined) {
-//       // This will update the context and trigger a re-render
-//       console.log('Updating unread counts:', data);
-//     }
-//   };
+  //   const onUnreadCountUpdate = (data) => {
+  //     if (data && data.totalUnread !== undefined) {
+  //       // This will update the context and trigger a re-render
+  //       console.log('Updating unread counts:', data);
+  //     }
+  //   };
 
-//   socket.on('connect', () => {
-//     console.log('Socket connected');
-//     const token = localStorage.getItem("token");
-//     if (token) {
-//       socket.emit("authenticate", token);
-//       // Request initial counts
-//       socket.emit('get-unread-counts', currentUserId);
-//     }
-//   });
+  //   socket.on('connect', () => {
+  //     console.log('Socket connected');
+  //     const token = localStorage.getItem("token");
+  //     if (token) {
+  //       socket.emit("authenticate", token);
+  //       // Request initial counts
+  //       socket.emit('get-unread-counts', currentUserId);
+  //     }
+  //   });
 
-//   socket.on('unread-count-update', onUnreadCountUpdate);
+  //   socket.on('unread-count-update', onUnreadCountUpdate);
 
-//   socket.on('disconnect', () => {
-//     console.log('Socket disconnected');
-//   });
+  //   socket.on('disconnect', () => {
+  //     console.log('Socket disconnected');
+  //   });
 
-//   socket.on('error', (err) => {
-//     console.error('Socket error:', err);
-//   });
+  //   socket.on('error', (err) => {
+  //     console.error('Socket error:', err);
+  //   });
 
-//   return () => {
-//     socket.off('unread-count-update', onUnreadCountUpdate);
-//     socket.disconnect();
-//   };
-// }, [currentUserId]);
-
+  //   return () => {
+  //     socket.off('unread-count-update', onUnreadCountUpdate);
+  //     socket.disconnect();
+  //   };
+  // }, [currentUserId]);
 
   useEffect(() => {
     // In the fetchUserData function in Header.jsx
@@ -229,74 +227,78 @@ const Header = () => {
     }
   };
 
- // Find the handleUpload function and modify it like this:
+  // Find the handleUpload function and modify it like this:
 
-const handleUpload = async () => {
-  if (!selectedFile) return;
+  const handleUpload = async () => {
+    if (!selectedFile) return;
 
-  const formData = new FormData();
-  formData.append("profileImage", selectedFile);
+    const formData = new FormData();
+    formData.append("profileImage", selectedFile);
 
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.post(
-      "http://localhost:5001/api/auth/upload-profile-image",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5001/api/auth/upload-profile-image",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        localStorage.setItem("profileImage", response.data.imageUrl);
+        setUser((prev) => ({ ...prev, profileImage: response.data.imageUrl }));
+
+        // Dispatch a custom event to notify other components
+        window.dispatchEvent(
+          new CustomEvent("profileImageChanged", {
+            detail: { profileImage: response.data.imageUrl },
+          })
+        );
+
+        setShowImageUpload(false);
+        setSelectedFile(null);
+        setPreviewImage(null);
       }
-    );
-
-    if (response.data.success) {
-      localStorage.setItem("profileImage", response.data.imageUrl);
-      setUser((prev) => ({ ...prev, profileImage: response.data.imageUrl }));
-      
-      // Dispatch a custom event to notify other components
-      window.dispatchEvent(new CustomEvent('profileImageChanged', {
-        detail: { profileImage: response.data.imageUrl }
-      }));
-      
-      setShowImageUpload(false);
-      setSelectedFile(null);
-      setPreviewImage(null);
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      alert("Failed to upload profile image");
     }
-  } catch (error) {
-    console.error("Error uploading profile image:", error);
-    alert("Failed to upload profile image");
-  }
-};
+  };
 
-// Also update the removeProfileImage function similarly:
-const removeProfileImage = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    const response = await axios.delete(
-      "http://localhost:5001/api/auth/remove-profile-image",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+  // Also update the removeProfileImage function similarly:
+  const removeProfileImage = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.delete(
+        "http://localhost:5001/api/auth/remove-profile-image",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        localStorage.removeItem("profileImage");
+        setUser((prev) => ({ ...prev, profileImage: null }));
+
+        // Dispatch a custom event for profile image removal
+        window.dispatchEvent(
+          new CustomEvent("profileImageChanged", {
+            detail: { profileImage: null },
+          })
+        );
+
+        setShowImageUpload(false);
       }
-    );
-
-    if (response.data.success) {
-      localStorage.removeItem("profileImage");
-      setUser((prev) => ({ ...prev, profileImage: null }));
-      
-      // Dispatch a custom event for profile image removal
-      window.dispatchEvent(new CustomEvent('profileImageChanged', {
-        detail: { profileImage: null }
-      }));
-      
-      setShowImageUpload(false);
+    } catch (error) {
+      console.error("Error removing profile image:", error);
     }
-  } catch (error) {
-    console.error("Error removing profile image:", error);
-  }
-};
+  };
 
   useEffect(() => {
     if (unreadCount > 0 && showNotifications) {
@@ -304,32 +306,44 @@ const removeProfileImage = async () => {
     }
   }, [unreadCount, showNotifications, fetchNotifications]);
 
-  const handleNotificationClick = (notification) => {
-    markAsRead(notification._id);
+  const handleNotificationClick = async (notification, e) => {
+    e.stopPropagation();
 
-    if (notification.type === "event") {
-      console.log("Full notification:", notification); // Debug log
+    try {
+      // Mark notification as read immediately for better UX
+      const prevUnreadCount = unreadCount;
 
-      if (notification.isCommunityMember) {
-        navigate(`/event/${notification.relatedEntity}`);
-      } else {
-        // Safely extract ALL event data with verification
-        const eventData = notification.eventData || {};
-        setCurrentEvent({
-          title: eventData.title || "New Event",
-          date: eventData.date || "Date not specified",
-          time: eventData.time || "Time not specified",
-          image: eventData.image || "",
-          organizer: eventData.organizer || "Organizer",
-        });
-        console.log("Setting currentEvent:", currentEvent); // Debug log
-        setShowEventPopup(true);
+      await markAsRead(notification._id);
+
+      console.log(`Notification ${notification._id} marked as read`);
+
+      // If it's an event notification, handle the event logic
+      if (notification.type === "event") {
+        console.log("Full notification:", notification);
+
+        if (notification.isCommunityMember) {
+          navigate(`/event/${notification.relatedEntity}`);
+        } else {
+          // Safely extract ALL event data with verification
+          const eventData = notification.eventData || {};
+          setCurrentEvent({
+            title: eventData.title || "New Event",
+            date: eventData.date || "Date not specified",
+            time: eventData.time || "Time not specified",
+            image: eventData.image || "",
+            organizer: eventData.organizer || "Organizer",
+          });
+          setShowEventPopup(true);
+        }
+      } else if (notification.type === "file") {
+        // Navigate to the document repository for the file's department
+        navigate(
+          `/department/${notification.relatedEntity.department}/documents`
+        );
       }
-    }else if (notification.type === 'file') {
-      // Navigate to the document repository for the file's department
-      navigate(`/department/${notification.relatedEntity.department}/documents`);
+    } catch (error) {
+      console.error("Error handling notification click:", error);
     }
-    
   };
 
   return (
@@ -347,7 +361,12 @@ const removeProfileImage = async () => {
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
-        {!isConnected && <span className="connection-indicator" title="Reconnecting..."></span>}
+          {!isConnected && (
+            <span
+              className="connection-indicator"
+              title="Reconnecting..."
+            ></span>
+          )}
         </div>
 
         {/* Notification Icon */}
@@ -399,7 +418,9 @@ const removeProfileImage = async () => {
                         className={`Notification-item ${
                           !notification.read ? "unread" : ""
                         }`}
-                        onClick={() => handleNotificationClick(notification)}
+                        onClick={(e) =>
+                          handleNotificationClick(notification, e)
+                        }
                       >
                         <div className="Notification-content">
                           {notification.sender?.profileImage ? (

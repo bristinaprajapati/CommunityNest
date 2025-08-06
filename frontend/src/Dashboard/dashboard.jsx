@@ -4,7 +4,7 @@ import "./dashboard.css";
 import Sidebar from "../Sidebar/sidebar";
 import Header from "../Header/Header";
 import { useNotifications } from "../contexts/NotificationContext";
-import { FaTimes } from "react-icons/fa"; // for the close icon
+import { FaTimes } from "react-icons/fa"; 
 import {
   FaCalendarAlt,
   FaUserCheck,
@@ -32,6 +32,7 @@ const Dashboard = () => {
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -41,15 +42,19 @@ const Dashboard = () => {
           axios.get("http://localhost:5001/api/dashboard", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:5001/api/notice", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => ({ data: { notices: [] } }))
+          axios
+            .get("http://localhost:5001/api/notice", {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .catch(() => ({ data: { notices: [] } })),
         ]);
 
         setAnnouncements(dashboardRes.data.announcements);
         setNotices(noticesRes.data.notices);
         setIsAdmin(dashboardRes.data.isAdmin);
-        setStats(dashboardRes.data.stats || { departments: 0, members: 0, events: 0 });
+        setStats(
+          dashboardRes.data.stats || { departments: 0, members: 0, events: 0 }
+        );
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -67,7 +72,7 @@ const Dashboard = () => {
         alert("No authentication token found. Please log in again.");
         return;
       }
-  
+
       const response = currentNotice
         ? await axios.put(
             `http://localhost:5001/api/notice/${currentNotice._id}`,
@@ -76,32 +81,35 @@ const Dashboard = () => {
           )
         : await axios.post(
             "http://localhost:5001/api/notice",
-            { 
+            {
               content: noticeContent,
-              createNotification: true // Add this flag
+              createNotification: true, // Add this flag
             },
             { headers: { Authorization: `Bearer ${token}` } }
           );
-  
+
       // Refresh notices and notifications
       await fetchNotifications();
-      
+
       // Refresh notices
       const noticesRes = await axios.get("http://localhost:5001/api/notice", {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       setNotices(noticesRes.data.notices);
       setModalIsOpen(false);
       setNoticeContent("");
-      
-      alert(currentNotice ? "Notice updated successfully!" : "Notice published successfully!");
+
+      alert(
+        currentNotice
+          ? "Notice updated successfully!"
+          : "Notice published successfully!"
+      );
     } catch (error) {
       console.error("Error saving notice:", error);
       alert(error.response?.data?.message || "Failed to save notice");
     }
   };
-  
 
   const handleDeleteNotice = async (noticeId) => {
     if (window.confirm("Are you sure you want to delete this notice?")) {
@@ -154,8 +162,8 @@ const Dashboard = () => {
     return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
-   //for image modal
-   const openImageModal = (imageUrl) => {
+  //for image modal
+  const openImageModal = (imageUrl) => {
     setSelectedImage(imageUrl);
   };
 
@@ -166,7 +174,7 @@ const Dashboard = () => {
     <div className="dashboard">
       <Sidebar />
       <Header setIsSidebarOpen={setIsSidebarOpen} />
-<Sidebar isOpen={isSidebarOpen} />
+      <Sidebar isOpen={isSidebarOpen} />
 
       <div className="dashboard-content">
         <div className="dashboard-header">
@@ -214,7 +222,7 @@ const Dashboard = () => {
             <div className="notice-header">
               <div className="notice-title-container">
                 <div className="icon-container yellow2">
-                  <FaBullhorn className="icon" size={20}/>
+                  <FaBullhorn className="icon" size={20} />
                 </div>
                 <h4>Announcement</h4>
               </div>
@@ -223,7 +231,7 @@ const Dashboard = () => {
                   onClick={openAddNoticeModal}
                   className="add-notice-button"
                 >
-                  <FaPlus /> Add 
+                  <FaPlus /> Add
                 </button>
               )}
             </div>
@@ -259,12 +267,11 @@ const Dashboard = () => {
                       <p>{notice.content}</p>
 
                       <p className="notice-meta">
-                      {formatDate(notice.createdAt)}
-                    </p>
+                        {formatDate(notice.createdAt)}
+                      </p>
                     </div>
 
                     {/* Date at bottom left */}
-                   
                   </div>
                 ))}
               </div>
@@ -275,62 +282,63 @@ const Dashboard = () => {
             )}
           </div>
 
-       
-
-<div className="events-section">
-  <div className="events-header">
-    <h5 className="event-section-title">Upcoming Events</h5>
-  </div>
-  {loading ? (
-    <div className="loading-container">
-      <p>Loading announcements...</p>
-    </div>
-  ) : announcements.length > 0 ? (
-  
-<div className="events-grid">
-  {announcements.map((announcement) => (
-    <div key={announcement._id} className="announcement-card">
-      <div className="card-image-container" onClick={() => openImageModal(announcement.image)}>
-        <img
-          src={
-            announcement.image ||
-            "https://via.placeholder.com/350x150?text=Event"
-          }
-          alt={announcement.title}
-          className="card-image"
-          loading="lazy"
-        />
-      </div>
-      <div className="card-details">
-        <h4 className="event-card-title">{announcement.title}</h4>
-        <p className="event-date">
-          {announcement.date} • {announcement.time}
-        </p>
-      </div>
-    </div>
-  ))}
-</div>
-  ) : (
-    <div className="no-events">
-      <p>No upcoming events currently</p>
-    </div>
-  )}
-</div>
-
-
+          <div className="events-section">
+            <div className="events-header">
+              <h5 className="event-section-title">Upcoming Events</h5>
+            </div>
+            {loading ? (
+              <div className="loading-container">
+                <p>Loading announcements...</p>
+              </div>
+            ) : announcements.length > 0 ? (
+              <div className="events-grid">
+                {announcements.map((announcement) => (
+                  <div key={announcement._id} className="announcement-card">
+                    <div
+                      className="card-image-container"
+                      onClick={() => openImageModal(announcement.image)}
+                    >
+                      <img
+                        src={
+                          announcement.image ||
+                          "https://via.placeholder.com/350x150?text=Event"
+                        }
+                        alt={announcement.title}
+                        className="card-image"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="card-details">
+                      <h4 className="event-card-title">{announcement.title}</h4>
+                      <p className="event-date">
+                        {announcement.date} • {announcement.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-events">
+                <p>No upcoming events currently</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-       {/* Image Modal */}
-       {selectedImage && (
+      {/* Image Modal */}
+      {selectedImage && (
         <div className="image-modal-overlay" onClick={closeImageModal}>
-          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button className="close-image-modal" onClick={closeImageModal}>
               <FaTimes />
             </button>
-            <img 
-              src={selectedImage} 
-              alt="Full size preview" 
-              className="modal-image" 
+            <img
+              src={selectedImage}
+              alt="Full size preview"
+              className="modal-image"
             />
           </div>
         </div>
@@ -353,12 +361,11 @@ const Dashboard = () => {
           rows={5}
         />
         <div className="modal-buttons">
-          
-          <button onClick={handleSaveNotice} className="publish-button"styles={{ color: "red" }}>
+          <button onClick={handleSaveNotice} className="publish-button">
             {currentNotice ? "Update Notice" : "Publish Notice"}
           </button>
-          <button onClick={closeModal} className="cancel-button1"
-          >
+
+          <button onClick={closeModal} className="cancel-button1">
             Cancel
           </button>
         </div>

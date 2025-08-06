@@ -169,7 +169,7 @@ router.post('/login', async (req, res) => {
     const isAdmin = false;
 
     // Generate JWT token (use environment variable for secret key)
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '2h' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
 
     console.log('Login successful, token generated'); // Log token generation success
 

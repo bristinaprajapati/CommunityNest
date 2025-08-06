@@ -14,8 +14,8 @@
   padding: 20px;
 
   z-index: 2;
-  position: fixed; /* Fix the header at the top */
-  top: 0; /* Make sure it's at the top of the screen */
+  position: fixed; 
+  top: 0; 
   left: 0;
   width: 97.5%;
 
